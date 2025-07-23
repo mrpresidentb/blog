@@ -20,8 +20,10 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setBlogPost(null);
+    console.log('PAGE: Kicking off generation with data:', data);
     try {
       const result = await handleGeneratePost(data);
+      console.log('PAGE: Received result from handleGeneratePost:', result);
       if (result && result.htmlContent) {
         setBlogPost(result);
         toast({
@@ -29,6 +31,7 @@ export default function Home() {
           description: "Your blog post has been generated.",
         })
       } else {
+        console.error('PAGE: Failed to generate blog post. Result was null or had no htmlContent.');
         const errorMessage = 'Failed to generate blog post. The AI may have returned an empty response. Please try again with a different topic.';
         setError(errorMessage);
         toast({
@@ -45,7 +48,7 @@ export default function Home() {
         title: "Error",
         description: errorMessage,
       })
-      console.error(e);
+      console.error('PAGE: An unexpected error occurred in onGenerate:', e);
     } finally {
       setLoading(false);
     }

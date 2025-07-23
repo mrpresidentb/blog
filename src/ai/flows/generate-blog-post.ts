@@ -51,9 +51,12 @@ const generateBlogPostFlow = ai.defineFlow({
   inputSchema: GenerateBlogPostInputSchema,
   outputSchema: GenerateBlogPostOutputSchema,
 }, async (input) => {
+  console.log('GENERATE BLOG POST FLOW: Input received:', JSON.stringify(input, null, 2));
   const {output} = await generateBlogPostPrompt(input);
+  console.log('GENERATE BLOG POST FLOW: Output from AI:', JSON.stringify(output, null, 2));
   if (!output || !output.htmlContent) {
     // Fallback in case of empty response from the model
+    console.error('GENERATE BLOG POST FLOW: AI returned empty or invalid output. Using fallback.');
     return { htmlContent: '<h1>Apologies</h1><p>I was unable to generate a blog post for the given topic. Please try a different topic or adjust your keywords.</p>' };
   }
   return output;

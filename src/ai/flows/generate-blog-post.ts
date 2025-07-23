@@ -15,6 +15,12 @@ const GenerateBlogPostInputSchema = z.object({
 
 export type GenerateBlogPostInput = z.infer<typeof GenerateBlogPostInputSchema>;
 
+// This is the schema the prompt will now receive, after TypeScript processing.
+const InternalPromptInputSchema = GenerateBlogPostInputSchema.extend({
+    articleLengthText: z.string().optional(),
+});
+
+
 const GenerateBlogPostOutputSchema = z.object({
   htmlContent: z.string().describe('The complete blog post content with HTML tags.'),
 });
@@ -28,7 +34,7 @@ export async function generateBlogPost(input: GenerateBlogPostInput): Promise<Ge
 const generateBlogPostPrompt = ai.definePrompt({
   name: 'generateBlogPostPrompt',
   input: {
-    schema: GenerateBlogPostInputSchema,
+    schema: InternalPromptInputSchema,
   },
   output: {
     schema: GenerateBlogPostOutputSchema,
@@ -42,8 +48,8 @@ Under no circumstances should you return an empty or null response. If the topic
 Topic: {{{topic}}}
 Keywords: {{{keywords}}}
 Tone: {{{tone}}}
-{{#if articleLength}}
-Article Length: {{#if customLength}}{{customLength}} sections{{else}}{{#if (eq articleLength "shorter")}}Approx. 400-500 words.{{/if}}{{#if (eq articleLength "short")}}Approx. 500-600 words.{{/if}}{{#if (eq articleLength "medium")}}Approx. 600-700 words.{{/if}}{{#if (eq articleLength "long")}}Approx. 700-1000 words.{{/if}}{{#if (eq articleLength "longer")}}Approx. 1200-2000 words.{{/if}}{{#if (eq articleLength "default")}}Default length.{{/if}}{{/if}}
+{{#if articleLengthText}}
+Article Length: {{{articleLengthText}}}
 {{/if}}
 {{#if highQuality}}
 Quality: High. Please take extra time to think, research, and structure the content for the best possible quality.
@@ -52,11 +58,6 @@ Quality: High. Please take extra time to think, research, and structure the cont
 Please generate a complete blog post with HTML tags that is both informative and engaging.
 Make sure the generated post is SEO optimized based on your knowledge and meets the requested word count.
 `,
-  template: {
-    helpers: {
-      eq: (v1: any, v2: any) => v1 === v2,
-    },
-  },
 });
 
 const generateBlogPostFlow = ai.defineFlow({
@@ -66,7 +67,35 @@ const generateBlogPostFlow = ai.defineFlow({
 }, async (input) => {
   console.log('GENERATE BLOG POST FLOW: Input received:', JSON.stringify(input, null, 2));
   
-  const {output} = await generateBlogPostPrompt(input);
+  // === LOGIC MOVED TO TYPESCRIPT ===
+  // This is where we build the descriptive string for the prompt.
+  let articleLengthText = '';
+  if (input.articleLength) {
+    if (input.articleLength === 'custom' && input.customLength) {
+      articleLengthText = `${input.customLength} sections`;
+    } else if (input.articleLength === 'shorter') {
+      articleLengthText = 'Approx. 400-500 words.';
+    } else if (input.articleLength === 'short') {
+      articleLengthText = 'Approx. 500-600 words.';
+    } else if (input.articleLength === 'medium') {
+      articleLengthText = 'Approx. 600-700 words.';
+    } else if (input.articleLength === 'long') {
+      articleLengthText = 'Approx. 700-1000 words.';
+    } else if (input.articleLength === 'longer') {
+        articleLengthText = 'Approx. 1200-2000 words.';
+    } else if (input.articleLength === 'default') {
+        articleLengthText = 'Default length.';
+    }
+  }
+
+  const promptInput = {
+    ...input,
+    articleLengthText: articleLengthText || undefined, // Pass the generated string to the prompt
+  };
+  
+  console.log('GENERATE BLOG POST FLOW: Calling prompt with processed input:', JSON.stringify(promptInput, null, 2));
+
+  const {output} = await generateBlogPostPrompt(promptInput);
   
   console.log('GENERATE BLOG POST FLOW: Output from AI:', JSON.stringify(output, null, 2));
   

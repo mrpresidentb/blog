@@ -16,10 +16,11 @@ import { Input } from '@/components/ui/input';
 interface BlogDisplayProps {
   htmlContent: string;
   images: ImageDetails[];
+  rawOutput: string;
   onFeedback: (rating: 'up' | 'down') => void;
 }
 
-export function BlogDisplay({ htmlContent, images, onFeedback }: BlogDisplayProps) {
+export function BlogDisplay({ htmlContent, images, rawOutput, onFeedback }: BlogDisplayProps) {
     const { toast } = useToast();
     const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
 
@@ -91,6 +92,7 @@ export function BlogDisplay({ htmlContent, images, onFeedback }: BlogDisplayProp
                     <TabsTrigger value="preview">Preview</TabsTrigger>
                     <TabsTrigger value="html">HTML</TabsTrigger>
                     {images && images.length > 0 && <TabsTrigger value="images">Image Details</TabsTrigger>}
+                    <TabsTrigger value="output">Output</TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-1">
                     <Button variant="ghost" size="icon" onClick={() => handleCopy(htmlContent, 'HTML')} aria-label="Copy HTML"><Copy className="h-4 w-4" /></Button>
@@ -159,6 +161,15 @@ export function BlogDisplay({ htmlContent, images, onFeedback }: BlogDisplayProp
                             </div>
                         ))}
                     </div>
+                </ScrollArea>
+            </TabsContent>
+            <TabsContent value="output" className="flex-grow mt-0 data-[state=inactive]:hidden">
+                <ScrollArea className="h-full">
+                    <Textarea
+                        className="p-6 font-code text-sm h-full w-full bg-muted border-0 rounded-none resize-none focus-visible:ring-0"
+                        value={rawOutput}
+                        readOnly
+                    />
                 </ScrollArea>
             </TabsContent>
         </Tabs>

@@ -22,23 +22,22 @@ export default function Home() {
     try {
       const result = await handleGeneratePost(data);
       console.log('PAGE: Received result from handleGeneratePost:', result);
+      setBlogPost(result);
       if (result && result.htmlContent && !result.htmlContent.includes("<h1>Error Generating Post</h1>")) {
-        setBlogPost(result);
         toast({
           title: "Success!",
           description: "Your blog post has been generated.",
         })
       } else {
-        setBlogPost(result); 
         toast({
           variant: "destructive",
           title: "Generation Failed",
-          description: "Could not generate the blog post. Please see the error message.",
+          description: "Could not generate the blog post. Please see the output tab for details.",
         })
       }
     } catch (e) {
       const errorMessage = 'An unexpected error occurred. Please check the console and try again.';
-      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`, images: []});
+      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`, images: [], rawOutput: JSON.stringify(e, null, 2)});
       toast({
         variant: "destructive",
         title: "Error",
@@ -93,6 +92,7 @@ export default function Home() {
                 <BlogDisplay 
                   htmlContent={blogPost.htmlContent}
                   images={blogPost.images}
+                  rawOutput={blogPost.rawOutput}
                   onFeedback={onFeedback}
                 />
               )}

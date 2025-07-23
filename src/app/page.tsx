@@ -9,7 +9,6 @@ import { Wand2 } from 'lucide-react';
 import type { GenerateBlogPostInput } from '@/ai/flows/generate-blog-post';
 import { AppGeneratePostOutput, handleGeneratePost, handleFeedback } from '@/app/actions';
 import { useToast } from "@/hooks/use-toast";
-import Image from 'next/image';
 
 export default function Home() {
   const [loading, setLoading] = useState(false);

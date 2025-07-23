@@ -70,15 +70,62 @@ const generateImageFlow = ai.defineFlow(
   }
 );
 
+// Schema for image metadata - NOT EXPORTED
+const ImageMetadataSchema = z.object({
+    altText: z.string().describe("Descriptive alt text for the image, for accessibility."),
+    title: z.string().describe("A concise, descriptive title for the image file or attachment page."),
+    caption: z.string().describe("A short caption to display under the image."),
+    description: z.string().describe("A more detailed description of the image and its context within the article."),
+});
+export type ImageMetadata = z.infer<typeof ImageMetadataSchema>;
+
+const ImageMetadataOutputSchema = z.object({
+    metadata: z.array(ImageMetadataSchema),
+});
+
+// Prompt to generate metadata for images
+const imageMetadataGenerator = ai.definePrompt({
+    name: 'imageMetadataGenerator',
+    input: { schema: z.object({ blogContent: z.string(), prompts: z.array(z.string()) }) },
+    output: { schema: ImageMetadataOutputSchema },
+    prompt: `You are an expert in SEO and accessibility.
+Based on the blog post content and the prompts used to generate the images, create metadata for each of the two images.
+For each image, provide:
+1.  **Alt Text:** A description for screen readers. Be descriptive about what the image shows.
+2.  **Title:** A concise, keyword-rich title.
+3.  **Caption:** A brief, engaging caption to display below the image.
+4.  **Description:** A longer description for the media library, explaining the image's relevance.
+
+Blog Content:
+{{{blogContent}}}
+
+Image Prompts:
+1. {{{prompts.[0]}}}
+2. {{{prompts.[1]}}}
+
+Generate the metadata for both images.
+`,
+});
 
 // Main flow that orchestrates generating prompts and then generating images
 const GenerateBlogImagesInputSchema = z.object({
   blogContent: z.string(),
 });
 
-const GenerateBlogImagesOutputSchema = z.object({
-  imageUrls: z.array(z.string()),
+// Schema for image details - NOT EXPORTED
+const ImageDetailsSchema = z.object({
+  url: z.string(),
+  altText: z.string(),
+  title: z.string(),
+  caption: z.string(),
+  description: z.string(),
 });
+export type ImageDetails = z.infer<typeof ImageDetailsSchema>;
+
+const GenerateBlogImagesOutputSchema = z.object({
+  images: z.array(ImageDetailsSchema),
+});
+
 
 export const generateBlogImages = ai.defineFlow(
   {
@@ -95,8 +142,23 @@ export const generateBlogImages = ai.defineFlow(
     // Step 2: Generate an image for each prompt in parallel
     const imagePromises = prompts.map(prompt => generateImageFlow(prompt));
     const imageUrls = await Promise.all(imagePromises);
-
     console.log('All images generated successfully:', imageUrls);
-    return { imageUrls };
+
+    // Step 3: Generate metadata for the images
+    console.log('Generating image metadata...');
+    const metadataResult = await imageMetadataGenerator({ blogContent, prompts });
+    const metadatas = metadataResult.output?.metadata;
+    if (!metadatas || metadatas.length !== 2) {
+      throw new Error('Failed to generate image metadata.');
+    }
+    console.log('Image metadata generated successfully:', metadatas);
+
+    // Step 4: Combine image URLs and metadata
+    const images: ImageDetails[] = imageUrls.map((url, index) => ({
+      url,
+      ...metadatas[index],
+    }));
+
+    return { images };
   }
 );

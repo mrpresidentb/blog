@@ -7,12 +7,15 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Share2, Download, ThumbsUp, ThumbsDown, Send } from 'lucide-react';
+import { Copy, Share2, Download, ThumbsUp, ThumbsDown, Send, ClipboardCopy } from 'lucide-react';
 import Image from 'next/image';
+import type { ImageDetails } from '@/ai/flows/generate-blog-images';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 interface BlogDisplayProps {
   htmlContent: string;
-  images: string[];
+  images: ImageDetails[];
   onFeedback: (rating: 'up' | 'down') => void;
 }
 
@@ -20,11 +23,11 @@ export function BlogDisplay({ htmlContent, images, onFeedback }: BlogDisplayProp
     const { toast } = useToast();
     const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(htmlContent);
+    const handleCopy = (text: string, type: string) => {
+        navigator.clipboard.writeText(text);
         toast({
             title: "Copied!",
-            description: "Blog post HTML has been copied to your clipboard.",
+            description: `${type} has been copied to your clipboard.`,
         });
     };
 
@@ -87,9 +90,10 @@ export function BlogDisplay({ htmlContent, images, onFeedback }: BlogDisplayProp
                 <TabsList>
                     <TabsTrigger value="preview">Preview</TabsTrigger>
                     <TabsTrigger value="html">HTML</TabsTrigger>
+                    {images && images.length > 0 && <TabsTrigger value="images">Image Details</TabsTrigger>}
                 </TabsList>
                 <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" onClick={handleCopy} aria-label="Copy HTML"><Copy className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleCopy(htmlContent, 'HTML')} aria-label="Copy HTML"><Copy className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={handleShare} aria-label="Share post"><Share2 className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={handleDownload} aria-label="Download HTML"><Download className="h-4 w-4" /></Button>
                     <Button variant="outline" size="sm" onClick={handlePublish} className="ml-2">
@@ -103,16 +107,19 @@ export function BlogDisplay({ htmlContent, images, onFeedback }: BlogDisplayProp
                     <div className="p-6">
                         {images && images.length > 0 && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                                {images.map((imgSrc, index) => (
-                                    <Image 
-                                        key={index}
-                                        src={imgSrc}
-                                        alt={`AI-generated image ${index + 1} for blog post`}
-                                        width={600}
-                                        height={400}
-                                        className="rounded-lg object-cover w-full aspect-video"
-                                        data-ai-hint="blog post illustration"
-                                    />
+                                {images.map((img, index) => (
+                                    <figure key={index}>
+                                        <Image 
+                                            src={img.url}
+                                            alt={img.altText}
+                                            title={img.title}
+                                            width={600}
+                                            height={400}
+                                            className="rounded-lg object-cover w-full aspect-video"
+                                            data-ai-hint="blog post illustration"
+                                        />
+                                        <figcaption className="text-sm text-center mt-2 text-muted-foreground italic">{img.caption}</figcaption>
+                                    </figure>
                                 ))}
                             </div>
                         )}
@@ -130,6 +137,28 @@ export function BlogDisplay({ htmlContent, images, onFeedback }: BlogDisplayProp
                         value={htmlContent}
                         readOnly
                     />
+                </ScrollArea>
+            </TabsContent>
+             <TabsContent value="images" className="flex-grow mt-0 data-[state=inactive]:hidden">
+                <ScrollArea className="h-full">
+                    <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {images.map((image, index) => (
+                            <div key={index} className="space-y-4">
+                                <h3 className="font-bold text-lg">Image {index + 1}</h3>
+                                <Image 
+                                    src={image.url}
+                                    alt={image.altText}
+                                    width={600}
+                                    height={400}
+                                    className="rounded-lg object-cover w-full aspect-video"
+                                />
+                                <MetadataField label="Alt Text" value={image.altText} onCopy={handleCopy} />
+                                <MetadataField label="Title" value={image.title} onCopy={handleCopy} />
+                                <MetadataField label="Caption" value={image.caption} onCopy={handleCopy} isTextarea />
+                                <MetadataField label="Description" value={image.description} onCopy={handleCopy} isTextarea />
+                            </div>
+                        ))}
+                    </div>
                 </ScrollArea>
             </TabsContent>
         </Tabs>
@@ -162,3 +191,31 @@ export function BlogDisplay({ htmlContent, images, onFeedback }: BlogDisplayProp
     </div>
   );
 }
+
+interface MetadataFieldProps {
+    label: string;
+    value: string;
+    onCopy: (value: string, type: string) => void;
+    isTextarea?: boolean;
+}
+
+const MetadataField = ({ label, value, onCopy, isTextarea = false }: MetadataFieldProps) => (
+    <div className="space-y-1">
+        <Label className="text-sm font-medium">{label}</Label>
+        <div className="relative">
+            {isTextarea ? (
+                <Textarea value={value} readOnly className="pr-10 bg-muted" rows={3} />
+            ) : (
+                <Input value={value} readOnly className="pr-10 bg-muted" />
+            )}
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={() => onCopy(value, label)}
+            >
+                <ClipboardCopy className="h-4 w-4" />
+            </Button>
+        </div>
+    </div>
+);

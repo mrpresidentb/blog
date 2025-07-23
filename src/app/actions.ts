@@ -1,7 +1,7 @@
 'use server';
 
 import { generateBlogPost, GenerateBlogPostInput, GenerateBlogPostOutput } from '@/ai/flows/generate-blog-post';
-import { generateBlogImages } from '@/ai/flows/generate-blog-images';
+import { generateBlogImages, ImageDetails } from '@/ai/flows/generate-blog-images';
 import { improveBlogPost } from '@/ai/flows/improve-blog-post';
 
 export type AppGeneratePostInput = GenerateBlogPostInput & {
@@ -9,7 +9,7 @@ export type AppGeneratePostInput = GenerateBlogPostInput & {
 };
 
 export type AppGeneratePostOutput = GenerateBlogPostOutput & {
-  images: string[];
+  images: ImageDetails[];
 };
 
 export async function handleGeneratePost(data: AppGeneratePostInput): Promise<AppGeneratePostOutput> {
@@ -24,15 +24,15 @@ export async function handleGeneratePost(data: AppGeneratePostInput): Promise<Ap
     const blogPostResult = await generateBlogPost(input);
     console.log('HANDLE GENERATE POST: Result from generateBlogPost:', JSON.stringify(blogPostResult, null, 2));
     
-    let imageUrls: string[] = [];
+    let imageDetails: ImageDetails[] = [];
     if (data.generateImages) {
       console.log('HANDLE GENERATE POST: Generating images...');
       const imageResult = await generateBlogImages({ blogContent: blogPostResult.htmlContent });
-      imageUrls = imageResult.imageUrls;
-      console.log('HANDLE GENERATE POST: Image URLs received:', imageUrls);
+      imageDetails = imageResult.images;
+      console.log('HANDLE GENERATE POST: Image details received:', imageDetails);
     }
     
-    const finalResult = { ...blogPostResult, images: imageUrls };
+    const finalResult = { ...blogPostResult, images: imageDetails };
     return finalResult;
 
   } catch (error) {

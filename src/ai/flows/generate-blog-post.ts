@@ -96,9 +96,7 @@ const generateBlogPostFlow = ai.defineFlow({
   
   console.log('GENERATE BLOG POST FLOW: Calling prompt with processed input:', JSON.stringify(promptInput, null, 2));
 
-  const selectedModel = input.model ? ai.model(input.model) : undefined;
-
-  const {output} = await generateBlogPostPrompt(promptInput, { model: selectedModel });
+  const {output} = await generateBlogPostPrompt(promptInput, { model: input.model });
   
   console.log('GENERATE BLOG POST FLOW: Output from AI:', JSON.stringify(output, null, 2));
   

@@ -11,6 +11,7 @@ const GenerateBlogPostInputSchema = z.object({
   articleLength: z.string().optional().describe('The desired length of the article, e.g., "short", "medium", "long", or a specific word count range.'),
   customLength: z.number().optional().describe('A custom number of sections for the article, if articleLength is "custom".'),
   highQuality: z.boolean().optional().describe('If true, the model should perform a more thorough and in-depth generation process.'),
+  model: z.string().optional().describe('The AI model to use for generation.'),
 });
 
 export type GenerateBlogPostInput = z.infer<typeof GenerateBlogPostInputSchema>;
@@ -95,7 +96,9 @@ const generateBlogPostFlow = ai.defineFlow({
   
   console.log('GENERATE BLOG POST FLOW: Calling prompt with processed input:', JSON.stringify(promptInput, null, 2));
 
-  const {output} = await generateBlogPostPrompt(promptInput);
+  const selectedModel = input.model ? ai.model(input.model) : undefined;
+
+  const {output} = await generateBlogPostPrompt(promptInput, { model: selectedModel });
   
   console.log('GENERATE BLOG POST FLOW: Output from AI:', JSON.stringify(output, null, 2));
   

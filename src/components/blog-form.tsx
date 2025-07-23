@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm, useWatch } from 'react-hook-form';
@@ -32,6 +33,7 @@ const formSchema = z.object({
   }).max(150, {
       message: 'Keywords must be at most 150 characters long.'
   }),
+  model: z.string().default('googleai/gemini-2.5-pro'),
   articleLength: z.string().default('default'),
   customLength: z.coerce.number().optional(),
   highQuality: z.boolean().default(false),
@@ -59,6 +61,7 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
     defaultValues: {
       topic: '',
       keywords: '',
+      model: 'googleai/gemini-2.5-pro',
       articleLength: 'default',
       customLength: undefined,
       highQuality: false,
@@ -112,6 +115,32 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
                   <FormMessage />
                 </FormItem>
               )}
+            />
+
+            <FormField
+                control={form.control}
+                name="model"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Generation Model</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                        <SelectTrigger>
+                        <SelectValue placeholder="Select a model" />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        <SelectItem value="googleai/gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
+                        <SelectItem value="googleai/gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
+                        <SelectItem value="googleai/gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite</SelectItem>
+                    </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Choose the AI model for text generation.
+                    </FormDescription>
+                    <FormMessage />
+                </FormItem>
+                )}
             />
             
             <FormField

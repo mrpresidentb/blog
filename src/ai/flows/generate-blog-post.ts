@@ -62,7 +62,7 @@ const generateBlogPostFlow = ai.defineFlow({
   const {output} = await generateBlogPostPrompt(input);
   console.log('GENERATE BLOG POST FLOW: Output from AI:', JSON.stringify(output, null, 2));
   if (!output || !output.htmlContent) {
-    throw new Error('AI returned empty or invalid output.');
+    throw new Error('AI returned empty or invalid output. This may happen with long-form content requests that time out or fail to generate. Please try a shorter length or different topic.');
   }
   return output;
 });

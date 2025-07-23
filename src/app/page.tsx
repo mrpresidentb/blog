@@ -12,37 +12,34 @@ import { useToast } from "@/hooks/use-toast"
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [blogPost, setBlogPost] = useState<GenerateBlogPostOutput | null>(null);
   const { toast } = useToast();
 
   const onGenerate = async (data: { topic: string; keywords: string }) => {
     setLoading(true);
-    setError(null);
     setBlogPost(null);
     console.log('PAGE: Kicking off generation with data:', data);
     try {
       const result = await handleGeneratePost(data);
       console.log('PAGE: Received result from handleGeneratePost:', result);
-      if (result && result.htmlContent) {
+      if (result && result.htmlContent && !result.htmlContent.includes("<h1>Error Generating Post</h1>")) {
         setBlogPost(result);
         toast({
           title: "Success!",
           description: "Your blog post has been generated.",
         })
       } else {
-        console.error('PAGE: Failed to generate blog post. Result was null or had no htmlContent.');
-        const errorMessage = 'Failed to generate blog post. The AI may have returned an empty response. Please try again with a different topic.';
-        setError(errorMessage);
+        // The action now returns an error object, so we display it directly.
+        setBlogPost(result); 
         toast({
           variant: "destructive",
           title: "Generation Failed",
-          description: errorMessage,
+          description: "Could not generate the blog post. Please see the error message.",
         })
       }
     } catch (e) {
       const errorMessage = 'An unexpected error occurred. Please check the console and try again.';
-      setError(errorMessage);
+      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`});
       toast({
         variant: "destructive",
         title: "Error",
@@ -93,14 +90,13 @@ export default function Home() {
           <Card className="h-full min-h-[60vh] shadow-lg">
             <CardContent className="p-2 h-full">
               {loading && <BlogDisplaySkeleton />}
-              {error && <div className="flex items-center justify-center h-full text-destructive p-8 text-center">{error}</div>}
               {blogPost && (
                 <BlogDisplay 
                   htmlContent={blogPost.htmlContent}
                   onFeedback={onFeedback}
                 />
               )}
-              {!loading && !blogPost && !error &&(
+              {!loading && !blogPost &&(
                  <div className="flex flex-col items-center justify-center h-full bg-muted/50 rounded-lg p-8 text-center">
                     <div className="p-4 bg-background rounded-full mb-4">
                         <Wand2 className="w-12 h-12 text-muted-foreground" />

@@ -35,7 +35,7 @@ const generateBlogPostPrompt = ai.definePrompt({
   Your goal is to create engaging and SEO optimized blog posts.
   The blog post should include HTML tags.
   The output should be a complete blog post, with no placeholders.
-  You must research the topic to include the latest information and news.
+  You must research the topic to include the latest information and news. If the topic is very niche or you cannot find information, get creative and write a compelling post based on the provided keywords and tone. Under no circumstances should you return an empty or null response.
 
   Topic: {{{topic}}}
   Keywords: {{{keywords}}}
@@ -52,5 +52,9 @@ const generateBlogPostFlow = ai.defineFlow({
   outputSchema: GenerateBlogPostOutputSchema,
 }, async (input) => {
   const {output} = await generateBlogPostPrompt(input);
-  return output!;
+  if (!output || !output.htmlContent) {
+    // Fallback in case of empty response from the model
+    return { htmlContent: '<h1>Apologies</h1><p>I was unable to generate a blog post for the given topic. Please try a different topic or adjust your keywords.</p>' };
+  }
+  return output;
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -14,8 +14,12 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Wand2, Loader2 } from 'lucide-react';
+import { Wand2, Loader2, Info } from 'lucide-react';
+import type { GenerateBlogPostInput } from '@/ai/flows/generate-blog-post';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const formSchema = z.object({
   topic: z.string().min(5, {
@@ -28,12 +32,23 @@ const formSchema = z.object({
   }).max(150, {
       message: 'Keywords must be at most 150 characters long.'
   }),
+  articleLength: z.string().default('default'),
+  customLength: z.coerce.number().optional(),
+  highQuality: z.boolean().default(false),
+}).refine(data => {
+    if (data.articleLength === 'custom') {
+        return data.customLength !== undefined && data.customLength > 0;
+    }
+    return true;
+}, {
+    message: 'Please specify the number of sections.',
+    path: ['customLength'],
 });
 
 type BlogFormValues = z.infer<typeof formSchema>;
 
 interface BlogFormProps {
-  onGenerate: (values: BlogFormValues) => void;
+  onGenerate: (values: GenerateBlogPostInput) => void;
   loading: boolean;
 }
 
@@ -43,15 +58,23 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
     defaultValues: {
       topic: '',
       keywords: '',
+      articleLength: 'default',
+      customLength: undefined,
+      highQuality: false,
     },
     mode: 'onChange',
+  });
+
+  const articleLengthValue = useWatch({
+    control: form.control,
+    name: 'articleLength',
   });
 
   return (
     <Card className="shadow-lg">
       <CardHeader>
         <CardTitle>Content Details</CardTitle>
-        <CardDescription>Provide the topic and keywords for your new blog post.</CardDescription>
+        <CardDescription>Provide the topic, keywords, and other options for your new blog post.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -88,6 +111,85 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
                 </FormItem>
               )}
             />
+            
+            <FormField
+                control={form.control}
+                name="articleLength"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel className="flex items-center gap-1">
+                        Article Length
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Info className="h-3 w-3 text-muted-foreground cursor-pointer" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Choose the desired length for your article.</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                        <SelectTrigger>
+                        <SelectValue placeholder="Select article length" />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        <SelectItem value="default">Default</SelectItem>
+                        <SelectItem value="shorter">Shorter (2-3 Sections)</SelectItem>
+                        <SelectItem value="short">Short (3-5 Sections)</SelectItem>
+                        <SelectItem value="medium">Medium (5-7 Sections)</SelectItem>
+                        <SelectItem value="long">Long Form (7-10 Sections)</SelectItem>
+                        <SelectItem value="longer">Longer (10-12 Sections)</SelectItem>
+                        <SelectItem value="custom">Custom Number of Sections</SelectItem>
+                    </SelectContent>
+                    </Select>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+
+            {articleLengthValue === 'custom' && (
+                <FormField
+                    control={form.control}
+                    name="customLength"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Custom Number of Sections</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="e.g., 4" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            )}
+
+            <FormField
+                control={form.control}
+                name="highQuality"
+                render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                        <FormLabel className="text-base">
+                        High Quality Mode
+                        </FormLabel>
+                        <FormDescription>
+                        The model will take more time to think and research for a better quality article.
+                        </FormDescription>
+                    </div>
+                    <FormControl>
+                        <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        />
+                    </FormControl>
+                    </FormItem>
+                )}
+            />
+            
             <Button 
               type="submit" 
               disabled={loading || !form.formState.isValid}

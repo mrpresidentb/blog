@@ -3,12 +3,12 @@
 import { generateBlogPost, GenerateBlogPostInput, GenerateBlogPostOutput } from '@/ai/flows/generate-blog-post';
 import { improveBlogPost } from '@/ai/flows/improve-blog-post';
 
-export async function handleGeneratePost(data: { topic: string; keywords: string }): Promise<GenerateBlogPostOutput> {
+export async function handleGeneratePost(data: GenerateBlogPostInput): Promise<GenerateBlogPostOutput> {
   console.log('HANDLE GENERATE POST: Received data:', JSON.stringify(data, null, 2));
   try {
     const input: GenerateBlogPostInput = {
       ...data,
-      tone: 'humorous',
+      tone: 'humorous', // You can expose this in the UI later if needed
     };
     console.log('HANDLE GENERATE POST: Calling generateBlogPost with input:', JSON.stringify(input, null, 2));
     const result = await generateBlogPost(input);

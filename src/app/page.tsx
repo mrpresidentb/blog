@@ -6,7 +6,7 @@ import { BlogDisplay } from '@/components/blog-display';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Wand2 } from 'lucide-react';
-import type { GenerateBlogPostOutput } from '@/ai/flows/generate-blog-post';
+import type { GenerateBlogPostInput, GenerateBlogPostOutput } from '@/ai/flows/generate-blog-post';
 import { handleGeneratePost, handleFeedback } from '@/app/actions';
 import { useToast } from "@/hooks/use-toast"
 
@@ -15,7 +15,7 @@ export default function Home() {
   const [blogPost, setBlogPost] = useState<GenerateBlogPostOutput | null>(null);
   const { toast } = useToast();
 
-  const onGenerate = async (data: { topic: string; keywords: string }) => {
+  const onGenerate = async (data: GenerateBlogPostInput) => {
     setLoading(true);
     setBlogPost(null);
     console.log('PAGE: Kicking off generation with data:', data);

@@ -9,6 +9,9 @@ const GenerateBlogPostInputSchema = z.object({
   topic: z.string().describe('The topic of the blog post.'),
   keywords: z.string().describe('Comma-separated keywords for SEO optimization.'),
   tone: z.enum(['professional', 'humorous', 'neutral']).default('neutral').describe('The tone of the blog post.'),
+  articleLength: z.string().optional().describe('The desired length of the article, e.g., "short", "medium", "long", or a specific section count.'),
+  customLength: z.number().optional().describe('A custom number of sections for the article, if articleLength is "custom".'),
+  highQuality: z.boolean().optional().describe('If true, the model should perform a more thorough and in-depth generation process.'),
 });
 
 export type GenerateBlogPostInput = z.infer<typeof GenerateBlogPostInputSchema>;
@@ -40,6 +43,12 @@ Under no circumstances should you return an empty or null response. If the topic
 Topic: {{{topic}}}
 Keywords: {{{keywords}}}
 Tone: {{{tone}}}
+{{#if articleLength}}
+Article Length: {{#if (eq articleLength "custom")}}{{customLength}} sections{{else}}{{articleLength}}{{/if}}
+{{/if}}
+{{#if highQuality}}
+Quality: High. Please take extra time to think, research, and structure the content for the best possible quality.
+{{/if}}
 
 Please generate a complete blog post with HTML tags that is both informative and engaging.
 Make sure the generated post is SEO optimized based on your knowledge.

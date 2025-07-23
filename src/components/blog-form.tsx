@@ -35,6 +35,7 @@ const formSchema = z.object({
   articleLength: z.string().default('default'),
   customLength: z.coerce.number().optional(),
   highQuality: z.boolean().default(false),
+  generateImages: z.boolean().default(false),
 }).refine(data => {
     if (data.articleLength === 'custom') {
         return data.customLength !== undefined && data.customLength > 0;
@@ -48,7 +49,7 @@ const formSchema = z.object({
 type BlogFormValues = z.infer<typeof formSchema>;
 
 interface BlogFormProps {
-  onGenerate: (values: GenerateBlogPostInput) => void;
+  onGenerate: (values: GenerateBlogPostInput & { generateImages?: boolean }) => void;
   loading: boolean;
 }
 
@@ -61,6 +62,7 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
       articleLength: 'default',
       customLength: undefined,
       highQuality: false,
+      generateImages: false,
     },
     mode: 'onChange',
   });
@@ -166,6 +168,29 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
                     )}
                 />
             )}
+
+             <FormField
+                control={form.control}
+                name="generateImages"
+                render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                        <FormLabel className="text-base">
+                        Include AI Images
+                        </FormLabel>
+                        <FormDescription>
+                        Generate two unique images based on the article's content. This will take longer.
+                        </FormDescription>
+                    </div>
+                    <FormControl>
+                        <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        />
+                    </FormControl>
+                    </FormItem>
+                )}
+            />
 
             <FormField
                 control={form.control}

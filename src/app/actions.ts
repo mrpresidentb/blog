@@ -1,26 +1,46 @@
 'use server';
 
 import { generateBlogPost, GenerateBlogPostInput, GenerateBlogPostOutput } from '@/ai/flows/generate-blog-post';
+import { generateBlogImages } from '@/ai/flows/generate-blog-images';
 import { improveBlogPost } from '@/ai/flows/improve-blog-post';
 
-export async function handleGeneratePost(data: GenerateBlogPostInput): Promise<GenerateBlogPostOutput> {
+export type AppGeneratePostInput = GenerateBlogPostInput & {
+  generateImages?: boolean;
+};
+
+export type AppGeneratePostOutput = GenerateBlogPostOutput & {
+  images: string[];
+};
+
+export async function handleGeneratePost(data: AppGeneratePostInput): Promise<AppGeneratePostOutput> {
   console.log('HANDLE GENERATE POST: Received data:', JSON.stringify(data, null, 2));
   try {
     const input: GenerateBlogPostInput = {
       ...data,
-      tone: 'humorous', // You can expose this in the UI later if needed
+      tone: 'humorous', 
     };
+    
     console.log('HANDLE GENERATE POST: Calling generateBlogPost with input:', JSON.stringify(input, null, 2));
-    const result = await generateBlogPost(input);
-    console.log('HANDLE GENERATE POST: Result from generateBlogPost:', JSON.stringify(result, null, 2));
-    // Ensure we always return a valid object, even if it's empty on failure (though the flow should throw).
-    return result || { htmlContent: '' };
+    const blogPostResult = await generateBlogPost(input);
+    console.log('HANDLE GENERATE POST: Result from generateBlogPost:', JSON.stringify(blogPostResult, null, 2));
+    
+    let imageUrls: string[] = [];
+    if (data.generateImages) {
+      console.log('HANDLE GENERATE POST: Generating images...');
+      const imageResult = await generateBlogImages({ blogContent: blogPostResult.htmlContent });
+      imageUrls = imageResult.imageUrls;
+      console.log('HANDLE GENERATE POST: Image URLs received:', imageUrls);
+    }
+    
+    const finalResult = { ...blogPostResult, images: imageUrls };
+    return finalResult;
+
   } catch (error) {
     console.error('HANDLE GENERATE POST: Error generating blog post:', error);
-    // In case of an error, return an object with an error message in the HTML content.
-    // This prevents the client from receiving null and crashing.
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
-      htmlContent: `<h1>Error Generating Post</h1><p>An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}</p><p>Please check the server logs for more details.</p>`
+      htmlContent: `<h1>Error Generating Post</h1><p>An error occurred: ${errorMessage}</p><p>Please check the server logs for more details.</p>`,
+      images: [],
     };
   }
 }

@@ -6,16 +6,17 @@ import { BlogDisplay } from '@/components/blog-display';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Wand2 } from 'lucide-react';
-import type { GenerateBlogPostInput, GenerateBlogPostOutput } from '@/ai/flows/generate-blog-post';
-import { handleGeneratePost, handleFeedback } from '@/app/actions';
-import { useToast } from "@/hooks/use-toast"
+import type { GenerateBlogPostInput } from '@/ai/flows/generate-blog-post';
+import { AppGeneratePostOutput, handleGeneratePost, handleFeedback } from '@/app/actions';
+import { useToast } from "@/hooks/use-toast";
+import Image from 'next/image';
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
-  const [blogPost, setBlogPost] = useState<GenerateBlogPostOutput | null>(null);
+  const [blogPost, setBlogPost] = useState<AppGeneratePostOutput | null>(null);
   const { toast } = useToast();
 
-  const onGenerate = async (data: GenerateBlogPostInput) => {
+  const onGenerate = async (data: GenerateBlogPostInput & { generateImages?: boolean }) => {
     setLoading(true);
     setBlogPost(null);
     console.log('PAGE: Kicking off generation with data:', data);
@@ -29,7 +30,6 @@ export default function Home() {
           description: "Your blog post has been generated.",
         })
       } else {
-        // The action now returns an error object, so we display it directly.
         setBlogPost(result); 
         toast({
           variant: "destructive",
@@ -39,7 +39,7 @@ export default function Home() {
       }
     } catch (e) {
       const errorMessage = 'An unexpected error occurred. Please check the console and try again.';
-      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`});
+      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`, images: []});
       toast({
         variant: "destructive",
         title: "Error",
@@ -93,6 +93,7 @@ export default function Home() {
               {blogPost && (
                 <BlogDisplay 
                   htmlContent={blogPost.htmlContent}
+                  images={blogPost.images}
                   onFeedback={onFeedback}
                 />
               )}
@@ -115,7 +116,9 @@ export default function Home() {
 
 const BlogDisplaySkeleton = () => (
   <div className="p-6 space-y-6">
-    <Skeleton className="h-8 w-3/4 rounded-md" />
+    <Skeleton className="h-48 w-full rounded-md" />
+    <Skeleton className="h-48 w-full rounded-md" />
+    <Skeleton className="h-8 w-3/4 rounded-md mt-4" />
     <div className="space-y-4">
       <Skeleton className="h-4 w-full rounded-md" />
       <Skeleton className="h-4 w-full rounded-md" />
@@ -124,11 +127,6 @@ const BlogDisplaySkeleton = () => (
      <div className="space-y-4">
       <Skeleton className="h-4 w-full rounded-md" />
       <Skeleton className="h-4 w-3/4 rounded-md" />
-    </div>
-     <div className="space-y-4">
-      <Skeleton className="h-4 w-full rounded-md" />
-      <Skeleton className="h-4 w-full rounded-md" />
-      <Skeleton className="h-4 w-2/3 rounded-md" />
     </div>
   </div>
 );

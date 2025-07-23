@@ -6,15 +6,17 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast";
 import { Copy, Share2, Download, ThumbsUp, ThumbsDown, Send } from 'lucide-react';
+import Image from 'next/image';
 
 interface BlogDisplayProps {
   htmlContent: string;
+  images: string[];
   onFeedback: (rating: 'up' | 'down') => void;
 }
 
-export function BlogDisplay({ htmlContent, onFeedback }: BlogDisplayProps) {
+export function BlogDisplay({ htmlContent, images, onFeedback }: BlogDisplayProps) {
     const { toast } = useToast();
     const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
 
@@ -98,10 +100,27 @@ export function BlogDisplay({ htmlContent, onFeedback }: BlogDisplayProps) {
             </div>
             <TabsContent value="preview" className="flex-grow mt-0 data-[state=inactive]:hidden">
                 <ScrollArea className="h-full">
-                    <div
-                    className="p-6 prose-styles"
-                    dangerouslySetInnerHTML={{ __html: htmlContent }}
-                    />
+                    <div className="p-6">
+                        {images && images.length > 0 && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                {images.map((imgSrc, index) => (
+                                    <Image 
+                                        key={index}
+                                        src={imgSrc}
+                                        alt={`AI-generated image ${index + 1} for blog post`}
+                                        width={600}
+                                        height={400}
+                                        className="rounded-lg object-cover w-full aspect-video"
+                                        data-ai-hint="blog post illustration"
+                                    />
+                                ))}
+                            </div>
+                        )}
+                        <div
+                            className="prose-styles"
+                            dangerouslySetInnerHTML={{ __html: htmlContent }}
+                        />
+                    </div>
                 </ScrollArea>
             </TabsContent>
             <TabsContent value="html" className="flex-grow mt-0 data-[state=inactive]:hidden">

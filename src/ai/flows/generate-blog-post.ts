@@ -1,5 +1,3 @@
-// The `wordpress-assistant` flow generates a complete, SEO-optimized blog post with HTML tags.
-
 'use server';
 
 import {ai} from '@/ai/genkit';

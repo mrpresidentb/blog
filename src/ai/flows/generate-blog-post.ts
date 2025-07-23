@@ -3,7 +3,7 @@
 'use server';
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 
 const GenerateBlogPostInputSchema = z.object({
   topic: z.string().describe('The topic of the blog post.'),
@@ -23,21 +23,8 @@ export async function generateBlogPost(input: GenerateBlogPostInput): Promise<Ge
   return generateBlogPostFlow(input);
 }
 
-const addHtmlTags = ai.defineTool({
-  name: 'addHtmlTags',
-  description: 'Wraps text with appropriate HTML tags for a blog post.',
-  inputSchema: z.object({
-    text: z.string().describe('The text to be wrapped in HTML tags.'),
-  }),
-  outputSchema: z.string().describe('The HTML-formatted text.'),
-}, async (input) => {
-  // Basic HTML formatting (can be expanded)
-  return `<div>${input.text}</div>`;
-});
-
 const generateBlogPostPrompt = ai.definePrompt({
   name: 'generateBlogPostPrompt',
-  tools: [addHtmlTags],
   input: {
     schema: GenerateBlogPostInputSchema,
   },
@@ -46,14 +33,16 @@ const generateBlogPostPrompt = ai.definePrompt({
   },
   prompt: `You are an expert blog post writer.
   Your goal is to create engaging and SEO optimized blog posts.
-  The blog post should include HTML tags using the available tool.
+  The blog post should include HTML tags.
+  The output should be a complete blog post, with no placeholders.
+  You must research the topic to include the latest information and news.
 
   Topic: {{{topic}}}
   Keywords: {{{keywords}}}
   Tone: {{{tone}}}
 
   Please generate a complete blog post with HTML tags that is both informative and engaging.
-  Make sure the generated post is SEO optimized.
+  Make sure the generated post is SEO optimized based on your research.
 `,
 });
 

@@ -70,7 +70,7 @@ const generateImageFlow = ai.defineFlow(
   }
 );
 
-// Schema for image metadata - NOT EXPORTED
+// Schema for image metadata
 const ImageMetadataSchema = z.object({
     altText: z.string().describe("Descriptive alt text for the image, for accessibility."),
     title: z.string().describe("A concise, descriptive title for the image file or attachment page."),
@@ -112,7 +112,7 @@ const GenerateBlogImagesInputSchema = z.object({
   blogContent: z.string(),
 });
 
-// Schema for image details - NOT EXPORTED
+// Schema for image details
 const ImageDetailsSchema = z.object({
   url: z.string(),
   altText: z.string(),

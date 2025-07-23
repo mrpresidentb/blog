@@ -44,7 +44,7 @@ Topic: {{{topic}}}
 Keywords: {{{keywords}}}
 Tone: {{{tone}}}
 {{#if articleLength}}
-Article Length: {{#if (eq articleLength "custom")}}{{customLength}} sections{{else}}{{articleLength}}{{/if}}
+Article Length: {{#if customLength}}{{customLength}} sections{{else}}{{articleLength}}{{/if}}
 {{/if}}
 {{#if highQuality}}
 Quality: High. Please take extra time to think, research, and structure the content for the best possible quality.

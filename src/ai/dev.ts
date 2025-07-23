@@ -1,5 +1,5 @@
 import { config } from 'dotenv';
 config();
 
-import '@/ai/flows/generate-blog-post.ts';
-import '@/ai/flows/improve-blog-post.ts';
+import './flows/generate-blog-post';
+import './flows/improve-blog-post';

@@ -31,18 +31,18 @@ const generateBlogPostPrompt = ai.definePrompt({
   output: {
     schema: GenerateBlogPostOutputSchema,
   },
-  prompt: `You are an expert blog post writer.
-  Your goal is to create engaging and SEO optimized blog posts.
-  The blog post should include HTML tags.
-  The output should be a complete blog post, with no placeholders.
-  You must research the topic to include the latest information and news. If the topic is very niche or you cannot find information, get creative and write a compelling post based on the provided keywords and tone. Under no circumstances should you return an empty or null response.
+  prompt: `You are an expert blog post writer. Your primary goal is to create engaging, well-researched, and SEO-optimized blog posts.
+The blog post MUST include standard HTML tags (e.g., <h1>, <h2>, <p>, <ul>, <li>, <strong>).
+The output should be a complete blog post, with no placeholders or unfinished sentences.
+You MUST use your extensive internal knowledge to write a creative and compelling post based on the provided topic, keywords, and tone.
+Under no circumstances should you return an empty or null response. If the topic is niche, be creative and generate the best possible content.
 
-  Topic: {{{topic}}}
-  Keywords: {{{keywords}}}
-  Tone: {{{tone}}}
+Topic: {{{topic}}}
+Keywords: {{{keywords}}}
+Tone: {{{tone}}}
 
-  Please generate a complete blog post with HTML tags that is both informative and engaging.
-  Make sure the generated post is SEO optimized based on your research.
+Please generate a complete blog post with HTML tags that is both informative and engaging.
+Make sure the generated post is SEO optimized based on your knowledge.
 `,
 });
 

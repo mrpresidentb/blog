@@ -7,7 +7,7 @@ const GenerateBlogPostInputSchema = z.object({
   topic: z.string().describe('The topic of the blog post.'),
   keywords: z.string().describe('Comma-separated keywords for SEO optimization.'),
   tone: z.enum(['professional', 'humorous', 'neutral']).default('neutral').describe('The tone of the blog post.'),
-  articleLength: z.string().optional().describe('The desired length of the article, e.g., "short", "medium", "long", or a specific section count.'),
+  articleLength: z.string().optional().describe('The desired length of the article, e.g., "short", "medium", "long", or a specific word count range.'),
   customLength: z.number().optional().describe('A custom number of sections for the article, if articleLength is "custom".'),
   highQuality: z.boolean().optional().describe('If true, the model should perform a more thorough and in-depth generation process.'),
 });
@@ -42,14 +42,23 @@ Topic: {{{topic}}}
 Keywords: {{{keywords}}}
 Tone: {{{tone}}}
 {{#if articleLength}}
-Article Length: {{#if customLength}}{{customLength}} sections{{else}}{{articleLength}}{{/if}}
+Article Length: {{#if customLength}}{{customLength}} sections{{else}}
+{{#switch articleLength}}
+    {{#case "shorter"}}Approx. 400-500 words.{{/case}}
+    {{#case "short"}}Approx. 500-600 words.{{/case}}
+    {{#case "medium"}}Approx. 600-700 words.{{/case}}
+    {{#case "long"}}Approx. 700-1000 words.{{/case}}
+    {{#case "longer"}}Approx. 1200-2000 words.{{/case}}
+    {{#default}}Default length.{{/default}}
+{{/switch}}
+{{/if}}
 {{/if}}
 {{#if highQuality}}
 Quality: High. Please take extra time to think, research, and structure the content for the best possible quality.
 {{/if}}
 
 Please generate a complete blog post with HTML tags that is both informative and engaging.
-Make sure the generated post is SEO optimized based on your knowledge.
+Make sure the generated post is SEO optimized based on your knowledge and meets the requested word count.
 `,
 });
 

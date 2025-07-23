@@ -140,11 +140,11 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
                     </FormControl>
                     <SelectContent>
                         <SelectItem value="default">Default</SelectItem>
-                        <SelectItem value="shorter">Shorter (2-3 Sections)</SelectItem>
-                        <SelectItem value="short">Short (3-5 Sections)</SelectItem>
-                        <SelectItem value="medium">Medium (5-7 Sections)</SelectItem>
-                        <SelectItem value="long">Long Form (7-10 Sections)</SelectItem>
-                        <SelectItem value="longer">Longer (10-12 Sections)</SelectItem>
+                        <SelectItem value="shorter">Shorter (400-500 Words)</SelectItem>
+                        <SelectItem value="short">Short (500-600 Words)</SelectItem>
+                        <SelectItem value="medium">Medium (600-700 Words)</SelectItem>
+                        <SelectItem value="long">Long Form (700-1000 Words)</SelectItem>
+                        <SelectItem value="longer">Longer (1200-2000 Words)</SelectItem>
                         <SelectItem value="custom">Custom Number of Sections</SelectItem>
                     </SelectContent>
                     </Select>

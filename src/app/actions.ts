@@ -20,7 +20,6 @@ export async function handleGeneratePost(data: AppGeneratePostInput): Promise<Ap
   try {
     const input: GenerateBlogPostInput = {
       ...data,
-      tone: 'humorous', 
     };
     
     console.log('HANDLE GENERATE POST: Calling generateBlogPost with input:', JSON.stringify(input, null, 2));
@@ -43,11 +42,13 @@ export async function handleGeneratePost(data: AppGeneratePostInput): Promise<Ap
 
   } catch (error) {
     console.error('HANDLE GENERATE POST: Error generating blog post:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const rawError = JSON.stringify(error, Object.getOwnPropertyNames(error), 2);
+    
     return {
       htmlContent: `<h1>Error Generating Post</h1><p>An error occurred: ${errorMessage}</p><p>Please check the server logs for more details.</p>`,
       images: [],
-      rawOutput: JSON.stringify({ error: errorMessage, blogPostResult, imageDetails }, null, 2),
+      rawOutput: rawError,
     };
   }
 }

@@ -54,8 +54,8 @@ Make sure the generated post is SEO optimized based on your knowledge and meets 
 `,
   template: {
     helpers: {
-      eq: (v1, v2) => v1 === v2,
-    }
+      eq: (v1: any, v2: any) => v1 === v2,
+    },
   },
 });
 

@@ -43,7 +43,7 @@ Topic: {{{topic}}}
 Keywords: {{{keywords}}}
 Tone: {{{tone}}}
 {{#if articleLength}}
-Article Length: {{#if customLength}}{{customLength}} sections{{else}}{{#ifCond articleLength "shorter"}}Approx. 400-500 words.{{/ifCond}}{{#ifCond articleLength "short"}}Approx. 500-600 words.{{/ifCond}}{{#ifCond articleLength "medium"}}Approx. 600-700 words.{{/ifCond}}{{#ifCond articleLength "long"}}Approx. 700-1000 words.{{/ifCond}}{{#ifCond articleLength "longer"}}Approx. 1200-2000 words.{{/ifCond}}{{#ifCond articleLength "default"}}Default length.{{/ifCond}}{{/if}}
+Article Length: {{#if customLength}}{{customLength}} sections{{else}}{{#if (eq articleLength "shorter")}}Approx. 400-500 words.{{/if}}{{#if (eq articleLength "short")}}Approx. 500-600 words.{{/if}}{{#if (eq articleLength "medium")}}Approx. 600-700 words.{{/if}}{{#if (eq articleLength "long")}}Approx. 700-1000 words.{{/if}}{{#if (eq articleLength "longer")}}Approx. 1200-2000 words.{{/if}}{{#if (eq articleLength "default")}}Default length.{{/if}}{{/if}}
 {{/if}}
 {{#if highQuality}}
 Quality: High. Please take extra time to think, research, and structure the content for the best possible quality.
@@ -54,12 +54,7 @@ Make sure the generated post is SEO optimized based on your knowledge and meets 
 `,
   template: {
     helpers: {
-      ifCond: (v1, v2, options) => {
-        if (v1 === v2) {
-          return options.fn(this);
-        }
-        return options.inverse(this);
-      },
+      eq: (v1, v2) => v1 === v2,
     }
   },
 });

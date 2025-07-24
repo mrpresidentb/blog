@@ -4,7 +4,11 @@ import {googleAI} from '@genkit-ai/googleai';
 import * as admin from 'firebase-admin';
 import { config } from 'dotenv';
 
-config();
+// Load environment variables from the root .env file
+config({ path: '.env' });
+// Load environment variables from the src/.env file, which will overwrite any existing ones.
+config({ path: 'src/.env', override: true });
+
 
 // Initialize Firebase Admin SDK only if it hasn't been initialized yet.
 if (!admin.apps.length) {
@@ -32,5 +36,3 @@ export const ai = genkit({
   plugins: [googleAI()],
   model: 'googleai/gemini-2.5-pro',
 });
-
-    

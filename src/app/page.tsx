@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Wand2 } from 'lucide-react';
 import type { GenerateBlogPostInput } from '@/ai/flows/generate-blog-post';
-import { handleGeneratePost, handleFeedback, handleGenerateImages } from '@/app/actions';
+import { handleGeneratePost, handleFeedback, handleGenerateImages, AppGeneratePostOutput } from '@/app/actions';
 import type { ImageDetails } from '@/ai/flows/generate-blog-images';
 import { useToast } from "@/hooks/use-toast";
 
@@ -30,7 +30,7 @@ export default function Home() {
 
     try {
       // Always generate the post first
-      const result = await handleGeneratePost(data);
+      const result: AppGeneratePostOutput = await handleGeneratePost(data);
       console.log('PAGE: Received result from handleGeneratePost:', result);
       
       const initialPostState: BlogPostState = {
@@ -54,20 +54,39 @@ export default function Home() {
             description: "Please wait, this may take a moment.",
           });
           
-          const imageResult = await handleGenerateImages(result.htmlContent);
-          setBlogPost(prev => prev ? { ...prev, images: imageResult.images, isGeneratingImages: false } : null);
-          
-          if (imageResult.images.length > 0) {
-             toast({
-                title: "Images Generated!",
-                description: "Your images have been added to the post.",
-             });
-          } else {
+          try {
+            const imageResult = await handleGenerateImages(result.htmlContent);
+            
+            if (imageResult.error) {
+               toast({
+                  variant: "destructive",
+                  title: "Image Generation Failed",
+                  description: "Could not generate images. See Output tab for details.",
+               });
+               setBlogPost(prev => prev ? { ...prev, rawOutput: imageResult.error!, isGeneratingImages: false } : null);
+            } else {
+               setBlogPost(prev => prev ? { ...prev, images: imageResult.images, isGeneratingImages: false } : null);
+               if (imageResult.images && imageResult.images.length > 0) {
+                   toast({
+                      title: "Images Generated!",
+                      description: "Your images have been added to the post.",
+                   });
+                } else {
+                     toast({
+                        variant: "destructive",
+                        title: "Image Generation Failed",
+                        description: "Could not generate images for the post.",
+                     });
+                }
+            }
+          } catch(e) {
+             const imageError = e instanceof Error ? e.message : JSON.stringify(e);
              toast({
                 variant: "destructive",
-                title: "Image Generation Failed",
-                description: "Could not generate images for the post.",
+                title: "Image Generation Error",
+                description: "An unexpected error occurred. See Output tab.",
              });
+             setBlogPost(prev => prev ? { ...prev, rawOutput: imageError, isGeneratingImages: false } : null);
           }
         }
 
@@ -80,7 +99,8 @@ export default function Home() {
       }
     } catch (e) {
       const errorMessage = 'An unexpected error occurred. Please check the console and try again.';
-      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`, images: null, rawOutput: JSON.stringify(e, null, 2), isGeneratingImages: false});
+      const rawError = e instanceof Error ? e.message : JSON.stringify(e, null, 2);
+      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`, images: null, rawOutput: rawError, isGeneratingImages: false});
       toast({
         variant: "destructive",
         title: "Error",

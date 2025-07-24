@@ -36,7 +36,12 @@ export async function handleGeneratePost(data: AppGeneratePostInput): Promise<Ap
   }
 }
 
-export async function handleGenerateImages(blogContent: string): Promise<{ images: ImageDetails[] }> {
+export type AppGenerateImagesOutput = { 
+  images: ImageDetails[] | null;
+  error?: string;
+}
+
+export async function handleGenerateImages(blogContent: string): Promise<AppGenerateImagesOutput> {
     console.log('HANDLE GENERATE IMAGES: Generating images...');
     try {
         const imageResult = await generateBlogImages({ blogContent });
@@ -44,8 +49,12 @@ export async function handleGenerateImages(blogContent: string): Promise<{ image
         return { images: imageResult.images };
     } catch (error) {
         console.error('HANDLE GENERATE IMAGES: Error generating images:', error);
-        // Return an empty array or you could add error info here
-        return { images: [] }; 
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const rawError = JSON.stringify(error, Object.getOwnPropertyNames(error), 2);
+        return { 
+            images: [], 
+            error: `An error occurred during image generation: ${errorMessage}\n\nRaw Error: ${rawError}` 
+        };
     }
 }
 

@@ -101,10 +101,11 @@ const generateSearchQueriesFlow = ai.defineFlow(
     outputSchema: z.object({ queries: z.array(z.string()) }),
   },
   async ({ topic }) => {
+    const currentYear = new Date().getFullYear();
     const prompt = `Generate 3-4 diverse, high-quality Google search queries to research the topic: "${topic}".
-    The queries should cover different angles of the topic to gather comprehensive information.
+    The queries should cover different angles of the topic to gather comprehensive information for the current year, ${currentYear}.
     For example, if the topic is "The Benefits of Meditation for Programmers", good queries would be:
-    - "benefits of meditation for software developers"
+    - "benefits of meditation for software developers ${currentYear}"
     - "mindfulness techniques for reducing burnout in tech"
     - "impact of meditation on cognitive performance and focus"
     - "how to start a meditation practice for busy professionals"
@@ -181,7 +182,7 @@ const generateBlogPostFlow = ai.defineFlow({
     const searchResults = searchResultsArrays.flat();
     debugInfo.rawSearchResults = searchResults;
 
-    const urlsToScrape = searchResults.map(r => r.link);
+    const urlsToScrape = searchResults.map(r => r.link).slice(0, 10); // Limit to 10 urls
     console.log(`HIGH QUALITY MODE: Found ${urlsToScrape.length} URLs to scrape.`);
 
     // 3. Scrape page content for each URL

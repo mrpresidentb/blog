@@ -33,7 +33,7 @@ export async function scrapePageContent(url: string): Promise<ScrapedContent> {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
-      timeout: 10000, // 10 second timeout
+      timeout: 15000, // 15 second timeout
     });
 
     if (response.status !== 200) {
@@ -60,7 +60,7 @@ export async function scrapePageContent(url: string): Promise<ScrapedContent> {
 
     // Clean up excessive newlines and whitespace, but preserve paragraph breaks.
     const cleanedText = article.textContent
-      .replace(/(\s*\n\s*){3,}/g, '\n\n') // Replace 3+ newlines (with surrounding whitespace) with a double newline
+      .replace(/(\s*\n\s*){2,}/g, '\n\n') // Replace 2+ newlines (with surrounding whitespace) with a double newline
       .trim(); // Trim leading/trailing whitespace
     
     console.log(`[Page Scraper] Successfully extracted and cleaned content from: ${url}. Length: ${cleanedText.length}`);

@@ -1,3 +1,4 @@
+
 'use server';
 
 import { ai } from '@/ai/genkit';
@@ -45,12 +46,12 @@ const generateImagePromptsFlow = ai.defineFlow(
   }
 );
 
-// Flow to generate an image from a single prompt and upload it
-const generateAndUploadImageFlow = ai.defineFlow(
+// NEW: Flow to generate a single image from a prompt, returning a data URI
+const generateImageFlow = ai.defineFlow(
   {
-    name: 'generateAndUploadImageFlow',
+    name: 'generateImageFlow',
     inputSchema: z.string(),
-    outputSchema: z.string(), // This will be the public URL
+    outputSchema: z.string(), // This will be the data URI
   },
   async (prompt) => {
     console.log(`Generating image for prompt: "${prompt}"`);
@@ -66,12 +67,8 @@ const generateAndUploadImageFlow = ai.defineFlow(
       console.error('Image generation failed, no media URL returned.');
       throw new Error('Image generation failed.');
     }
-    console.log('Image generation successful, starting upload...');
-    
-    // Upload the image to Firebase Storage and get the public URL
-    const publicUrl = await uploadImageToStorage(media.url);
-    
-    return publicUrl;
+    console.log('Image generation successful, data URI received.');
+    return media.url;
   }
 );
 
@@ -145,12 +142,17 @@ export const generateBlogImages = ai.defineFlow(
     const { prompts } = await generateImagePromptsFlow({ blogContent });
     console.log('Generated image prompts:', prompts);
 
-    // Step 2: Generate and upload an image for each prompt in parallel
-    const imagePromises = prompts.map(prompt => generateAndUploadImageFlow(prompt));
-    const imageUrls = await Promise.all(imagePromises);
-    console.log('All images generated and uploaded successfully:', imageUrls);
+    // Step 2: Generate an image for each prompt (get data URIs)
+    const dataUriPromises = prompts.map(prompt => generateImageFlow(prompt));
+    const dataUris = await Promise.all(dataUriPromises);
+    console.log('All images generated successfully as data URIs.');
+    
+    // Step 3: Upload each image to Firebase storage
+    const uploadPromises = dataUris.map(uri => uploadImageToStorage(uri));
+    const imageUrls = await Promise.all(uploadPromises);
+    console.log('All images uploaded successfully:', imageUrls);
 
-    // Step 3: Generate metadata for the images
+    // Step 4: Generate metadata for the images
     console.log('Generating image metadata...');
     const metadataResult = await imageMetadataGenerator({ blogContent, prompts });
     const metadatas = metadataResult.output?.metadata;
@@ -159,7 +161,7 @@ export const generateBlogImages = ai.defineFlow(
     }
     console.log('Image metadata generated successfully:', metadatas);
 
-    // Step 4: Combine image URLs and metadata
+    // Step 5: Combine image URLs and metadata
     const images: ImageDetails[] = imageUrls.map((url, index) => ({
       url,
       ...metadatas[index],

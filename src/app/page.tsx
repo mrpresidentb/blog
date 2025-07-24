@@ -24,6 +24,52 @@ export default function Home() {
   const [blogPost, setBlogPost] = useState<BlogPostState | null>(null);
   const { toast } = useToast();
 
+  const onGenerateImages = async () => {
+    if (!blogPost) return;
+
+    setBlogPost(prev => prev ? { ...prev, isGeneratingImages: true, images: [] } : null);
+    toast({
+        title: "Generating New Images...",
+        description: "Please wait, this may take a moment.",
+    });
+
+    try {
+        const imageResult = await handleGenerateImages(blogPost.htmlContent);
+        
+        if (imageResult.error) {
+           toast({
+              variant: "destructive",
+              title: "Image Generation Failed",
+              description: "Could not generate images. See Output tab for details.",
+           });
+           setBlogPost(prev => prev ? { ...prev, rawOutput: `${prev.rawOutput}\n\n--- IMAGES ---\n${imageResult.rawOutput}`, isGeneratingImages: false } : null);
+        } else {
+           setBlogPost(prev => prev ? { ...prev, images: imageResult.images, isGeneratingImages: false, rawOutput: `${prev.rawOutput}\n\n--- IMAGES ---\n${imageResult.rawOutput}` } : null);
+           if (imageResult.images && imageResult.images.length > 0) {
+               toast({
+                  title: "New Images Generated!",
+                  description: "Your new images have been added to the post.",
+               });
+            } else {
+                 toast({
+                    variant: "destructive",
+                    title: "Image Generation Failed",
+                    description: "Could not generate images for the post.",
+                 });
+            }
+        }
+      } catch(e) {
+         const imageError = e instanceof Error ? e.message : JSON.stringify(e);
+         toast({
+            variant: "destructive",
+            title: "Image Generation Error",
+            description: "An unexpected error occurred. See Output tab.",
+         });
+         setBlogPost(prev => prev ? { ...prev, rawOutput: `${prev.rawOutput}\n\n--- IMAGES ---\n${imageError}`, isGeneratingImages: false } : null);
+      }
+  };
+
+
   const onGenerate = async (data: GenerateBlogPostInput & { generateImages?: boolean }) => {
     setLoading(true);
     setBlogPost(null);
@@ -50,45 +96,7 @@ export default function Home() {
 
         // If images are requested, trigger generation now
         if (data.generateImages) {
-          toast({
-            title: "Generating Images...",
-            description: "Please wait, this may take a moment.",
-          });
-          
-          try {
-            const imageResult = await handleGenerateImages(result.htmlContent);
-            
-            if (imageResult.error) {
-               toast({
-                  variant: "destructive",
-                  title: "Image Generation Failed",
-                  description: "Could not generate images. See Output tab for details.",
-               });
-               setBlogPost(prev => prev ? { ...prev, rawOutput: `${prev.rawOutput}\n\n--- IMAGES ---\n${imageResult.rawOutput}`, isGeneratingImages: false } : null);
-            } else {
-               setBlogPost(prev => prev ? { ...prev, images: imageResult.images, isGeneratingImages: false, rawOutput: `${prev.rawOutput}\n\n--- IMAGES ---\n${imageResult.rawOutput}` } : null);
-               if (imageResult.images && imageResult.images.length > 0) {
-                   toast({
-                      title: "Images Generated!",
-                      description: "Your images have been added to the post.",
-                   });
-                } else {
-                     toast({
-                        variant: "destructive",
-                        title: "Image Generation Failed",
-                        description: "Could not generate images for the post.",
-                     });
-                }
-            }
-          } catch(e) {
-             const imageError = e instanceof Error ? e.message : JSON.stringify(e);
-             toast({
-                variant: "destructive",
-                title: "Image Generation Error",
-                description: "An unexpected error occurred. See Output tab.",
-             });
-             setBlogPost(prev => prev ? { ...prev, rawOutput: `${prev.rawOutput}\n\n--- IMAGES ---\n${imageError}`, isGeneratingImages: false } : null);
-          }
+            onGenerateImages();
         }
 
       } else {
@@ -151,7 +159,7 @@ export default function Home() {
         <div className="lg:mt-0">
           <Card className="h-full min-h-[60vh] shadow-lg">
             <CardContent className="p-2 h-full">
-              {loading && <BlogDisplaySkeleton />}
+              {loading && !blogPost && <BlogDisplaySkeleton />}
               {blogPost && (
                 <BlogDisplay 
                   htmlContent={blogPost.htmlContent}
@@ -159,6 +167,7 @@ export default function Home() {
                   isGeneratingImages={blogPost.isGeneratingImages}
                   rawOutput={blogPost.rawOutput}
                   onFeedback={onFeedback}
+                  onRegenerateImages={onGenerateImages}
                 />
               )}
               {!loading && !blogPost &&(

@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Share2, Download, ThumbsUp, ThumbsDown, Send, ClipboardCopy, Loader2 } from 'lucide-react';
+import { Copy, Share2, Download, ThumbsUp, ThumbsDown, Send, ClipboardCopy, Loader2, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 import type { ImageDetails } from '@/ai/flows/generate-blog-images';
 import { Label } from '@/components/ui/label';
@@ -22,9 +22,10 @@ interface BlogDisplayProps {
   isGeneratingImages: boolean;
   rawOutput: string;
   onFeedback: (rating: 'up' | 'down') => void;
+  onRegenerateImages: () => void;
 }
 
-export function BlogDisplay({ htmlContent, images, isGeneratingImages, rawOutput, onFeedback }: BlogDisplayProps) {
+export function BlogDisplay({ htmlContent, images, isGeneratingImages, rawOutput, onFeedback, onRegenerateImages }: BlogDisplayProps) {
     const { toast } = useToast();
     const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
 
@@ -155,24 +156,37 @@ export function BlogDisplay({ htmlContent, images, isGeneratingImages, rawOutput
             </TabsContent>
              <TabsContent value="images" className="flex-grow mt-0 data-[state=inactive]:hidden">
                 <ScrollArea className="h-full">
-                    <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {isGeneratingImages && <p>Generating image details...</p>}
-                        {images && images.map((image, index) => (
-                            <div key={index} className="space-y-4">
-                                <h3 className="font-bold text-lg">Image {index + 1}</h3>
-                                <Image 
-                                    src={image.url}
-                                    alt={image.altText}
-                                    width={600}
-                                    height={400}
-                                    className="rounded-lg object-cover w-full aspect-video"
-                                />
-                                <MetadataField label="Alt Text" value={image.altText} onCopy={handleCopy} />
-                                <MetadataField label="Title" value={image.title} onCopy={handleCopy} />
-                                <MetadataField label="Caption" value={image.caption} onCopy={handleCopy} isTextarea />
-                                <MetadataField label="Description" value={image.description} onCopy={handleCopy} isTextarea />
-                            </div>
-                        ))}
+                    <div className="p-6">
+                        <div className="flex justify-end mb-4">
+                            <Button variant="outline" onClick={onRegenerateImages} disabled={isGeneratingImages}>
+                                <RefreshCw className={`mr-2 h-4 w-4 ${isGeneratingImages ? 'animate-spin' : ''}`} />
+                                Create New Set
+                            </Button>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {isGeneratingImages && (
+                                <>
+                                    <ImageDetailsSkeleton />
+                                    <ImageDetailsSkeleton />
+                                </>
+                            )}
+                            {images && images.map((image, index) => (
+                                <div key={index} className="space-y-4">
+                                    <h3 className="font-bold text-lg">Image {index + 1}</h3>
+                                    <Image 
+                                        src={image.url}
+                                        alt={image.altText}
+                                        width={600}
+                                        height={400}
+                                        className="rounded-lg object-cover w-full aspect-video"
+                                    />
+                                    <MetadataField label="Alt Text" value={image.altText} onCopy={handleCopy} />
+                                    <MetadataField label="Title" value={image.title} onCopy={handleCopy} />
+                                    <MetadataField label="Caption" value={image.caption} onCopy={handleCopy} isTextarea />
+                                    <MetadataField label="Description" value={image.description} onCopy={handleCopy} isTextarea />
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </ScrollArea>
             </TabsContent>
@@ -220,6 +234,25 @@ const ImagePlaceholder = () => (
     <div className="w-full aspect-video bg-muted rounded-lg flex flex-col items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-2" />
         <p className="text-sm text-muted-foreground">Generating image...</p>
+    </div>
+)
+
+const ImageDetailsSkeleton = () => (
+    <div className="space-y-4">
+        <Skeleton className="h-6 w-1/4" />
+        <Skeleton className="w-full aspect-video rounded-lg" />
+        <div className="space-y-2">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-10 w-full" />
+        </div>
+        <div className="space-y-2">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-10 w-full" />
+        </div>
+        <div className="space-y-2">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-20 w-full" />
+        </div>
     </div>
 )
 

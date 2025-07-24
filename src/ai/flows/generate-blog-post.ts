@@ -231,7 +231,7 @@ const generateBlogPostFlow = ai.defineFlow({
         }
         debugInfo.rawSearchResults = searchResultsByQuery;
 
-        const urlsToScrape = Array.from(allUrls).slice(0, 10); // Limit to 10 unique urls
+        const urlsToScrape = Array.from(allUrls).slice(0, 5); // Limit to 5 unique urls
         console.log(`HIGH QUALITY MODE: Found ${urlsToScrape.length} unique URLs to scrape.`);
 
 

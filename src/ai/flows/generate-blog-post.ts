@@ -259,7 +259,7 @@ const generateBlogPostFlow = ai.defineFlow({
             };
         }
     }
-    debugInfo.scrapedPageContentsAndRelevance = relevanceCheckResults; // Renamed for clarity
+    debugInfo.scrapedPageContentsAndRelevance = relevanceCheckResults;
 
     const research_context = relevantContent.join('\n\n---\n\n');
 

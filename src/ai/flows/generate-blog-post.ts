@@ -114,20 +114,20 @@ const generateSearchQueriesFlow = ai.defineFlow(
     const { output } = await ai.generate({
       prompt,
       model: 'googleai/gemini-2.5-flash',
+      output: {
+        format: 'json',
+        schema: z.object({ queries: z.array(z.string()) }),
+      }
     });
     
-    try {
-        const parsedOutput = JSON.parse(output as string);
-        if (parsedOutput.queries && Array.isArray(parsedOutput.queries)) {
-            return parsedOutput;
-        }
-        // Fallback if parsing works but content is not as expected
-        return { queries: [topic] };
-    } catch(e) {
-        console.error("Failed to parse search queries:", e);
-        // Fallback in case of parsing failure
-        return { queries: [topic] };
+    if (output?.queries && Array.isArray(output.queries) && output.queries.length > 0) {
+        console.log("Successfully generated and parsed search queries:", output.queries);
+        return output;
     }
+
+    console.warn("Failed to generate or parse search queries as JSON, falling back to topic.");
+    // Fallback in case of parsing failure or empty array
+    return { queries: [topic] };
   }
 );
 

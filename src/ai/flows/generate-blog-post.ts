@@ -244,75 +244,67 @@ const generateBlogPostFlow = ai.defineFlow({
 
         // 4. Process settled results: Clean, Check Relevance, and Aggregate
         for (const result of settledScrapeResults) {
-            if (result.status !== 'fulfilled' || !result.value) {
-                const reason = result.status === 'rejected' ? (result.reason instanceof Error ? result.reason.message : String(result.reason)) : 'Unknown fulfillment error';
-                console.error('[generateBlogPostFlow] A scrape promise was unexpectedly rejected or empty:', reason);
-                // We can't know the URL if the promise was rejected without it, so we just log and continue.
+            // A. Handle rejected promises (network errors, etc.)
+            if (result.status === 'rejected') {
+                const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
+                console.error('[generateBlogPostFlow] A scrape promise was rejected:', reason);
+                // We don't know the URL if the promise was rejected without it, so we log and continue.
+                // You could enhance scrapePage to always wrap errors in an object with the URL.
                 continue; 
             }
-            
+
+            // B. Handle fulfilled promises (scraper function returned a value)
             const scrapedPage: ScrapedPage = result.value;
 
-            // Step 3a: Log scraping result
+            // Initialize log entry for this URL
+            relevanceCheckResults[scrapedPage.url] = {
+                isRelevant: false,
+                rawRequest: scrapedPage.rawRequestUrl,
+                rawResponse: scrapedPage.rawResponse,
+                userAgent: scrapedPage.userAgent,
+                error: null,
+                preview: null,
+            };
+            
+            // C. Check if scraping was successful within the scraper function
             if (!scrapedPage.success) {
-                relevanceCheckResults[scrapedPage.url] = {
-                    isRelevant: false,
-                    error: `Scraping failed: ${scrapedPage.error}`,
-                    userAgent: scrapedPage.userAgent,
-                    rawRequest: scrapedPage.rawRequestUrl,
-                    rawResponse: scrapedPage.rawResponse,
-                };
+                relevanceCheckResults[scrapedPage.url].error = `Scraping failed: ${scrapedPage.error}`;
+                continue;
+            }
+            
+            if (!scrapedPage.htmlContent) {
+                relevanceCheckResults[scrapedPage.url].error = 'Scraping succeeded but returned no HTML content.';
                 continue;
             }
 
-            // Step 3b: CLEAN - Parse with Readability
+            // D. CLEAN - Parse with Readability
             let cleanTextContent: string;
             try {
-                if (!scrapedPage.htmlContent) {
-                     throw new Error('Scraped page has no HTML content.');
-                }
                 const doc = new JSDOM(scrapedPage.htmlContent, { url: scrapedPage.url });
                 const reader = new Readability(doc.window.document);
                 const article = reader.parse();
 
                 if (!article || !article.textContent) {
-                     relevanceCheckResults[scrapedPage.url] = {
-                        isRelevant: false,
-                        error: 'Readability could not extract main content.',
-                        userAgent: scrapedPage.userAgent,
-                        rawRequest: scrapedPage.rawRequestUrl,
-                        rawResponse: scrapedPage.rawResponse,
-                    };
-                    continue;
+                     relevanceCheckResults[scrapedPage.url].error = 'Readability could not extract main content.';
+                     continue;
                 }
                 cleanTextContent = article.textContent.replace(/(\s*\n\s*){2,}/g, '\n\n').trim();
 
             } catch (e) {
-                 relevanceCheckResults[scrapedPage.url] = {
-                    isRelevant: false,
-                    error: `Readability parsing failed: ${e instanceof Error ? e.message : String(e)}`,
-                    userAgent: scrapedPage.userAgent,
-                    rawRequest: scrapedPage.rawRequestUrl,
-                    rawResponse: scrapedPage.rawResponse,
-                };
-                continue;
+                 relevanceCheckResults[scrapedPage.url].error = `Readability parsing failed: ${e instanceof Error ? e.message : String(e)}`;
+                 continue;
             }
+            relevanceCheckResults[scrapedPage.url].preview = cleanTextContent.substring(0, 200) + '...';
 
-            // Step 3c: RELEVANCE CHECK on clean content
+            // E. RELEVANCE CHECK on clean content
             const isRelevant = await checkRelevanceFlow({
                 topic: input.topic,
                 content: cleanTextContent,
             });
 
-            relevanceCheckResults[scrapedPage.url] = {
-                isRelevant,
-                preview: cleanTextContent.substring(0, 200) + '...',
-                userAgent: scrapedPage.userAgent,
-                rawRequest: scrapedPage.rawRequestUrl,
-                rawResponse: scrapedPage.rawResponse,
-            };
+            relevanceCheckResults[scrapedPage.url].isRelevant = isRelevant;
 
-            // Step 3d: ADD TO CONTEXT if relevant
+            // F. ADD TO CONTEXT if relevant
             if (isRelevant) {
                 relevantContent.push(`Source URL: ${scrapedPage.url}\n\n'''\n${cleanTextContent}\n'''`);
             }

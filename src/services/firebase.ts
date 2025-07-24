@@ -1,5 +1,5 @@
 // This file is for interacting with Firebase services from the backend.
-import *alif as admin from 'firebase-admin';
+import * as admin from 'firebase-admin';
 import { v4 as uuidv4 } from 'uuid';
 
 // Initialize Firebase Admin SDK

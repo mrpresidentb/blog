@@ -16,6 +16,7 @@ interface BlogPostState {
   htmlContent: string;
   images: ImageDetails[] | null;
   rawOutput: string;
+  imageRawOutput: string; // New field for image logs
   isGeneratingImages: boolean;
 }
 
@@ -42,9 +43,9 @@ export default function Home() {
               title: "Image Generation Failed",
               description: "Could not generate images. See Output tab for details.",
            });
-           setBlogPost(prev => prev ? { ...prev, rawOutput: `${prev.rawOutput}\n\n--- IMAGE GENERATION DEBUG ---\n${imageResult.rawOutput}`, isGeneratingImages: false } : null);
+           setBlogPost(prev => prev ? { ...prev, imageRawOutput: imageResult.rawOutput || 'Unknown error', isGeneratingImages: false } : null);
         } else {
-           setBlogPost(prev => prev ? { ...prev, images: imageResult.images, isGeneratingImages: false, rawOutput: `${prev.rawOutput}\n\n--- IMAGE GENERATION DEBUG ---\n${imageResult.rawOutput}` } : null);
+           setBlogPost(prev => prev ? { ...prev, images: imageResult.images, isGeneratingImages: false, imageRawOutput: imageResult.rawOutput || '' } : null);
            if (imageResult.images && imageResult.images.length > 0) {
                toast({
                   title: "New Images Generated!",
@@ -65,7 +66,7 @@ export default function Home() {
             title: "Image Generation Error",
             description: "An unexpected error occurred. See Output tab.",
          });
-         setBlogPost(prev => prev ? { ...prev, rawOutput: `${prev.rawOutput}\n\n--- IMAGE GENERATION DEBUG ---\n${imageError}`, isGeneratingImages: false } : null);
+         setBlogPost(prev => prev ? { ...prev, imageRawOutput: imageError, isGeneratingImages: false } : null);
       }
   };
 
@@ -84,6 +85,7 @@ export default function Home() {
         htmlContent: result.htmlContent,
         images: data.generateImages ? [] : null, // Empty array indicates images are coming
         rawOutput: result.rawOutput,
+        imageRawOutput: '', // Initialize as empty
         isGeneratingImages: !!data.generateImages,
       };
       setBlogPost(initialPostState);
@@ -96,7 +98,8 @@ export default function Home() {
 
         // If images are requested, trigger generation now
         if (data.generateImages) {
-            onGenerateImages();
+            // We reuse onGenerateImages, which now handles its own state updates for logs
+            onGenerateImages(); 
         }
 
       } else {
@@ -109,7 +112,7 @@ export default function Home() {
     } catch (e) {
       const errorMessage = 'An unexpected error occurred. Please check the console and try again.';
       const rawError = e instanceof Error ? e.message : JSON.stringify(e, null, 2);
-      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`, images: null, rawOutput: rawError, isGeneratingImages: false});
+      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`, images: null, rawOutput: rawError, imageRawOutput: '', isGeneratingImages: false});
       toast({
         variant: "destructive",
         title: "Error",
@@ -166,6 +169,7 @@ export default function Home() {
                   images={blogPost.images}
                   isGeneratingImages={blogPost.isGeneratingImages}
                   rawOutput={blogPost.rawOutput}
+                  imageRawOutput={blogPost.imageRawOutput}
                   onFeedback={onFeedback}
                   onRegenerateImages={onGenerateImages}
                 />

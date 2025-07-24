@@ -1,12 +1,13 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from "@/hooks/use-toast";
 import { Copy, Share2, Download, ThumbsUp, ThumbsDown, Send, ClipboardCopy, Loader2, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
@@ -21,13 +22,29 @@ interface BlogDisplayProps {
   images: ImageDetails[] | null; // Can be null if not requested, or empty array while loading
   isGeneratingImages: boolean;
   rawOutput: string;
+  imageRawOutput: string;
   onFeedback: (rating: 'up' | 'down') => void;
   onRegenerateImages: () => void;
 }
 
-export function BlogDisplay({ htmlContent, images, isGeneratingImages, rawOutput, onFeedback, onRegenerateImages }: BlogDisplayProps) {
+export function BlogDisplay({ htmlContent, images, isGeneratingImages, rawOutput, imageRawOutput, onFeedback, onRegenerateImages }: BlogDisplayProps) {
     const { toast } = useToast();
     const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
+
+    const parsedOutput = useMemo(() => {
+        try {
+            return JSON.parse(rawOutput);
+        } catch (e) {
+            return { raw: rawOutput };
+        }
+    }, [rawOutput]);
+
+    const isHighQualityMode = parsedOutput.mode === 'High Quality (RAG)';
+    const highQualityDetails = {
+        'Generated Search Queries': parsedOutput.generatedSearchQueries,
+        'Raw Search Results': parsedOutput.rawSearchResults,
+        'Research Context Sent to AI': parsedOutput.researchContextSentToAI,
+    };
 
     const handleCopy = (text: string, type: string) => {
         navigator.clipboard.writeText(text);
@@ -191,12 +208,50 @@ export function BlogDisplay({ htmlContent, images, isGeneratingImages, rawOutput
                 </ScrollArea>
             </TabsContent>
             <TabsContent value="output" className="flex-grow mt-0 data-[state=inactive]:hidden">
-                <ScrollArea className="h-full">
-                    <Textarea
-                        className="p-6 font-code text-sm h-full w-full bg-muted border-0 rounded-none resize-none focus-visible:ring-0"
-                        value={rawOutput}
-                        readOnly
-                    />
+                <ScrollArea className="h-full p-4">
+                    <Accordion type="multiple" defaultValue={['text-log']} className="w-full">
+                        <AccordionItem value="text-log">
+                            <AccordionTrigger>Text Generation Log</AccordionTrigger>
+                            <AccordionContent>
+                                <Textarea
+                                    className="font-code text-sm h-64 w-full bg-muted border-0 rounded-md resize-none focus-visible:ring-0"
+                                    value={rawOutput}
+                                    readOnly
+                                />
+                            </AccordionContent>
+                        </AccordionItem>
+                        
+                        {isHighQualityMode && (
+                            <AccordionItem value="rag-details">
+                                <AccordionTrigger>High Quality Mode (RAG) Details</AccordionTrigger>
+                                <AccordionContent className="space-y-4">
+                                    {Object.entries(highQualityDetails).map(([key, value]) => (
+                                        <div key={key}>
+                                            <h4 className="font-semibold mb-2">{key}</h4>
+                                            <Textarea
+                                                className="font-code text-sm h-48 w-full bg-muted border-0 rounded-md resize-none focus-visible:ring-0"
+                                                value={value ? JSON.stringify(value, null, 2) : 'Not available.'}
+                                                readOnly
+                                            />
+                                        </div>
+                                    ))}
+                                </AccordionContent>
+                            </AccordionItem>
+                        )}
+                        
+                        {(imageRawOutput || isGeneratingImages) && (
+                           <AccordionItem value="image-log">
+                                <AccordionTrigger>Image Generation Log</AccordionTrigger>
+                                <AccordionContent>
+                                    <Textarea
+                                        className="font-code text-sm h-64 w-full bg-muted border-0 rounded-md resize-none focus-visible:ring-0"
+                                        value={isGeneratingImages && !imageRawOutput ? 'Generating images...' : imageRawOutput}
+                                        readOnly
+                                    />
+                                </AccordionContent>
+                            </AccordionItem>
+                        )}
+                    </Accordion>
                 </ScrollArea>
             </TabsContent>
         </Tabs>

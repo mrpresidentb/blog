@@ -15,6 +15,7 @@ const ScrapedContentSchema = z.object({
     success: z.boolean(),
     textContent: z.string().optional(),
     error: z.string().optional(),
+    userAgent: z.string().optional(),
 });
 
 export type ScrapedContent = z.infer<typeof ScrapedContentSchema>;
@@ -41,10 +42,10 @@ const USER_AGENTS = [
  * @returns A promise that resolves to an object containing the scraped content or an error message.
  */
 export async function scrapePageContent(url: string): Promise<ScrapedContent> {
-  console.log(`[Page Scraper] Starting to scrape: ${url}`);
+  const randomUserAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+  console.log(`[Page Scraper] Starting to scrape: ${url} with User-Agent: ${randomUserAgent}`);
+  
   try {
-    const randomUserAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-    
     // Fetch the HTML content of the page
     const response = await axios.get(url, {
       headers: {
@@ -72,6 +73,7 @@ export async function scrapePageContent(url: string): Promise<ScrapedContent> {
         url,
         success: false,
         error: 'Readability could not extract main content.',
+        userAgent: randomUserAgent,
       };
     }
 
@@ -85,6 +87,7 @@ export async function scrapePageContent(url: string): Promise<ScrapedContent> {
       url,
       success: true,
       textContent: cleanedText,
+      userAgent: randomUserAgent,
     };
 
   } catch (error) {
@@ -94,6 +97,7 @@ export async function scrapePageContent(url: string): Promise<ScrapedContent> {
       url,
       success: false,
       error: errorMessage,
+      userAgent: randomUserAgent,
     };
   }
 }

@@ -232,8 +232,7 @@ const generateBlogPostFlow = ai.defineFlow({
     // 3. Scrape page content for each URL
     const scrapePromises = urlsToScrape.map(url => scrapePageContent(url));
     const scrapedContents = await Promise.all(scrapePromises);
-    debugInfo.scrapedPageContents = scrapedContents; // Log full scraped content for debugging
-
+    
     // 4. Relevance Check and Content Aggregation
     const relevantContent: string[] = [];
     const relevanceCheckResults: Record<string, any> = {};
@@ -246,7 +245,8 @@ const generateBlogPostFlow = ai.defineFlow({
             });
             relevanceCheckResults[content.url] = {
                 isRelevant,
-                preview: content.textContent.substring(0, 200) + '...'
+                preview: content.textContent.substring(0, 200) + '...',
+                userAgent: content.userAgent,
             };
             if (isRelevant) {
                 relevantContent.push(`Source URL: ${content.url}\n\n'''\n${content.textContent}\n'''`);
@@ -254,17 +254,17 @@ const generateBlogPostFlow = ai.defineFlow({
         } else {
              relevanceCheckResults[content.url] = {
                 isRelevant: false,
-                error: content.error
+                error: content.error,
+                userAgent: content.userAgent,
             };
         }
     }
-    debugInfo.relevanceCheckResults = relevanceCheckResults;
+    debugInfo.scrapedPageContentsAndRelevance = relevanceCheckResults; // Renamed for clarity
 
     const research_context = relevantContent.join('\n\n---\n\n');
 
     console.log("HIGH QUALITY MODE: Aggregated research context. Length:", research_context.length);
     
-    // CORRECT PLACEMENT FOR LOGGING - BEFORE the AI call
     if (research_context) {
         debugInfo.researchContextSentToAI = research_context;
     } else {

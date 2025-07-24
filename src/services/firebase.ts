@@ -2,7 +2,8 @@
 import * as admin from 'firebase-admin';
 import { v4 as uuidv4 } from 'uuid';
 
-// Firebase Admin SDK is initialized in src/ai/genkit.ts
+// Firebase Admin SDK is initialized in src/ai/genkit.ts, which is loaded on startup.
+// This ensures that by the time any function in this file is called, the SDK is ready.
 
 const bucket = admin.storage().bucket();
 

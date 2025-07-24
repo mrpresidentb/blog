@@ -57,12 +57,17 @@ export async function scrapePageContent(url: string): Promise<ScrapedContent> {
         error: 'Readability could not extract main content.',
       };
     }
+
+    // Clean up excessive newlines and whitespace, but preserve paragraph breaks.
+    const cleanedText = article.textContent
+      .replace(/(\s*\n\s*){3,}/g, '\n\n') // Replace 3+ newlines (with surrounding whitespace) with a double newline
+      .trim(); // Trim leading/trailing whitespace
     
-    console.log(`[Page Scraper] Successfully extracted content from: ${url}. Length: ${article.textContent.length}`);
+    console.log(`[Page Scraper] Successfully extracted and cleaned content from: ${url}. Length: ${cleanedText.length}`);
     return {
       url,
       success: true,
-      textContent: article.textContent.trim(),
+      textContent: cleanedText,
     };
 
   } catch (error) {

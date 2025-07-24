@@ -7,7 +7,8 @@ import { improveBlogPost } from '@/ai/flows/improve-blog-post';
 
 export type AppGeneratePostInput = GenerateBlogPostInput;
 
-export type AppGeneratePostOutput = GenerateBlogPostOutput & {
+export type AppGeneratePostOutput = {
+  htmlContent: string;
   rawOutput: string;
 };
 
@@ -20,21 +21,11 @@ export async function handleGeneratePost(data: AppGeneratePostInput): Promise<Ap
     const blogPostResult = await generateBlogPost(input);
     console.log('HANDLE GENERATE POST: Result from generateBlogPost:', JSON.stringify(blogPostResult, null, 2));
     
-    // Combine the main result and debug info into a single rawOutput string
-    const rawOutput = JSON.stringify(
-        { 
-            blogPostResult: {
-                htmlContent: `(See Preview tab)`,
-                ...blogPostResult
-            } 
-        }, 
-        null, 
-        2
-    );
+    // The rawOutput will now be just the debug information.
+    const rawOutput = JSON.stringify(blogPostResult.debugInfo || {}, null, 2);
 
     return { 
       htmlContent: blogPostResult.htmlContent,
-      debugInfo: blogPostResult.debugInfo,
       rawOutput: rawOutput,
     };
 

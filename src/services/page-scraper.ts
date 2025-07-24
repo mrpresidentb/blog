@@ -127,7 +127,7 @@ export async function scrapePageContentWithScraperAPI(targetUrl: string): Promis
         });
 
         if (response.status !== 200) {
-            throw new Error(`Request failed with status ${response.status}`);
+            throw new Error(`Request failed with status ${response.status}. Response: ${response.data}`);
         }
 
         const html = response.data;
@@ -159,7 +159,22 @@ export async function scrapePageContentWithScraperAPI(targetUrl: string): Promis
         };
 
     } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        let errorMessage = 'An unknown error occurred with ScraperAPI.';
+        if (axios.isAxiosError(error)) {
+            // Log more detailed info if it's an Axios error
+            errorMessage = `ScraperAPI request failed: ${error.message}.`;
+            if (error.response) {
+                // The request was made and the server responded with a status code
+                // that falls out of the range of 2xx
+                errorMessage += ` Status: ${error.response.status}. Data: ${JSON.stringify(error.response.data)}.`;
+            } else if (error.request) {
+                // The request was made but no response was received
+                errorMessage += ' No response received from ScraperAPI.';
+            }
+        } else if (error instanceof Error) {
+            errorMessage = `ScraperAPI error: ${error.message}`;
+        }
+        
         console.error(`[Page Scraper - ScraperAPI] Failed to scrape ${targetUrl}:`, errorMessage);
         return {
             url: targetUrl,

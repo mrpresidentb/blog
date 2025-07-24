@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -120,15 +121,17 @@ export function BlogDisplay({ htmlContent, images, isGeneratingImages, rawOutput
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                                 {images.map((img, index) => (
                                     <figure key={index}>
-                                        <Image 
-                                            src={img.url}
-                                            alt={img.altText}
-                                            title={img.title}
-                                            width={600}
-                                            height={400}
-                                            className="rounded-lg object-cover w-full aspect-video"
-                                            data-ai-hint="blog post illustration"
-                                        />
+                                        <a href={img.url} target="_blank" rel="noopener noreferrer" title="Click to open full-size image in a new tab">
+                                            <Image 
+                                                src={img.url}
+                                                alt={img.altText}
+                                                title={img.title}
+                                                width={600}
+                                                height={400}
+                                                className="rounded-lg object-cover w-full aspect-video"
+                                                data-ai-hint="blog post illustration"
+                                            />
+                                        </a>
                                         <figcaption className="text-sm text-center mt-2 text-muted-foreground italic">{img.caption}</figcaption>
                                     </figure>
                                 ))}

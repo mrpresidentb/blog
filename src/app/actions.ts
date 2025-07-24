@@ -4,41 +4,25 @@ import { generateBlogPost, GenerateBlogPostInput, GenerateBlogPostOutput } from 
 import { generateBlogImages, ImageDetails } from '@/ai/flows/generate-blog-images';
 import { improveBlogPost } from '@/ai/flows/improve-blog-post';
 
-export type AppGeneratePostInput = GenerateBlogPostInput & {
-  generateImages?: boolean;
-};
+export type AppGeneratePostInput = GenerateBlogPostInput;
 
 export type AppGeneratePostOutput = GenerateBlogPostOutput & {
-  images: ImageDetails[];
   rawOutput: string;
 };
 
 export async function handleGeneratePost(data: AppGeneratePostInput): Promise<AppGeneratePostOutput> {
   console.log('HANDLE GENERATE POST: Received data:', JSON.stringify(data, null, 2));
-  let blogPostResult: GenerateBlogPostOutput | null = null;
-  let imageDetails: ImageDetails[] = [];
   try {
-    const input: GenerateBlogPostInput = {
-      ...data,
-    };
+    const input: GenerateBlogPostInput = { ...data };
     
     console.log('HANDLE GENERATE POST: Calling generateBlogPost with input:', JSON.stringify(input, null, 2));
-    blogPostResult = await generateBlogPost(input);
+    const blogPostResult = await generateBlogPost(input);
     console.log('HANDLE GENERATE POST: Result from generateBlogPost:', JSON.stringify(blogPostResult, null, 2));
     
-    if (data.generateImages && blogPostResult?.htmlContent) {
-      console.log('HANDLE GENERATE POST: Generating images...');
-      const imageResult = await generateBlogImages({ blogContent: blogPostResult.htmlContent });
-      imageDetails = imageResult.images;
-      console.log('HANDLE GENERATE POST: Image details received:', imageDetails);
-    }
-    
-    const finalResult = { 
-      htmlContent: blogPostResult?.htmlContent || '',
-      images: imageDetails,
-      rawOutput: JSON.stringify({ blogPostResult, imageDetails }, null, 2),
+    return { 
+      htmlContent: blogPostResult.htmlContent,
+      rawOutput: JSON.stringify({ blogPostResult }, null, 2),
     };
-    return finalResult;
 
   } catch (error) {
     console.error('HANDLE GENERATE POST: Error generating blog post:', error);
@@ -47,11 +31,24 @@ export async function handleGeneratePost(data: AppGeneratePostInput): Promise<Ap
     
     return {
       htmlContent: `<h1>Error Generating Post</h1><p>An error occurred: ${errorMessage}</p><p>Please check the server logs for more details.</p>`,
-      images: [],
       rawOutput: rawError,
     };
   }
 }
+
+export async function handleGenerateImages(blogContent: string): Promise<{ images: ImageDetails[] }> {
+    console.log('HANDLE GENERATE IMAGES: Generating images...');
+    try {
+        const imageResult = await generateBlogImages({ blogContent });
+        console.log('HANDLE GENERATE IMAGES: Image details received:', imageResult.images);
+        return { images: imageResult.images };
+    } catch (error) {
+        console.error('HANDLE GENERATE IMAGES: Error generating images:', error);
+        // Return an empty array or you could add error info here
+        return { images: [] }; 
+    }
+}
+
 
 export async function handleFeedback(blogPost: string, rating: 'up' | 'down'): Promise<{success: boolean}> {
   try {

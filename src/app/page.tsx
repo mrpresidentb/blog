@@ -1,48 +1,91 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BlogForm } from '@/components/blog-form';
 import { BlogDisplay } from '@/components/blog-display';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Wand2 } from 'lucide-react';
 import type { GenerateBlogPostInput } from '@/ai/flows/generate-blog-post';
-import { AppGeneratePostOutput, handleGeneratePost, handleFeedback } from '@/app/actions';
+import { handleGeneratePost, handleFeedback, handleGenerateImages } from '@/app/actions';
+import type { ImageDetails } from '@/ai/flows/generate-blog-images';
 import { useToast } from "@/hooks/use-toast";
+
+interface BlogPostState {
+  htmlContent: string;
+  images: ImageDetails[] | null;
+  rawOutput: string;
+  isGeneratingImages: boolean;
+}
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
-  const [blogPost, setBlogPost] = useState<AppGeneratePostOutput | null>(null);
+  const [blogPost, setBlogPost] = useState<BlogPostState | null>(null);
   const { toast } = useToast();
 
   const onGenerate = async (data: GenerateBlogPostInput & { generateImages?: boolean }) => {
     setLoading(true);
     setBlogPost(null);
     console.log('PAGE: Kicking off generation with data:', data);
+
     try {
+      // Always generate the post first
       const result = await handleGeneratePost(data);
       console.log('PAGE: Received result from handleGeneratePost:', result);
-      setBlogPost(result);
-      if (result && result.htmlContent && !result.htmlContent.includes("<h1>Error Generating Post</h1>")) {
+      
+      const initialPostState: BlogPostState = {
+        htmlContent: result.htmlContent,
+        images: data.generateImages ? [] : null, // Empty array indicates images are coming
+        rawOutput: result.rawOutput,
+        isGeneratingImages: !!data.generateImages,
+      };
+      setBlogPost(initialPostState);
+
+      if (result && result.htmlContent && !result.htmlContent.includes("<h1>Error")) {
         toast({
           title: "Success!",
           description: "Your blog post has been generated.",
-        })
+        });
+
+        // If images are requested, trigger generation now
+        if (data.generateImages) {
+          toast({
+            title: "Generating Images...",
+            description: "Please wait, this may take a moment.",
+          });
+          
+          const imageResult = await handleGenerateImages(result.htmlContent);
+          setBlogPost(prev => prev ? { ...prev, images: imageResult.images, isGeneratingImages: false } : null);
+          
+          if (imageResult.images.length > 0) {
+             toast({
+                title: "Images Generated!",
+                description: "Your images have been added to the post.",
+             });
+          } else {
+             toast({
+                variant: "destructive",
+                title: "Image Generation Failed",
+                description: "Could not generate images for the post.",
+             });
+          }
+        }
+
       } else {
         toast({
           variant: "destructive",
           title: "Generation Failed",
           description: "Could not generate the blog post. Please see the output tab for details.",
-        })
+        });
       }
     } catch (e) {
       const errorMessage = 'An unexpected error occurred. Please check the console and try again.';
-      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`, images: [], rawOutput: JSON.stringify(e, null, 2)});
+      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`, images: null, rawOutput: JSON.stringify(e, null, 2), isGeneratingImages: false});
       toast({
         variant: "destructive",
         title: "Error",
         description: errorMessage,
-      })
+      });
       console.error('PAGE: An unexpected error occurred in onGenerate:', e);
     } finally {
       setLoading(false);
@@ -92,6 +135,7 @@ export default function Home() {
                 <BlogDisplay 
                   htmlContent={blogPost.htmlContent}
                   images={blogPost.images}
+                  isGeneratingImages={blogPost.isGeneratingImages}
                   rawOutput={blogPost.rawOutput}
                   onFeedback={onFeedback}
                 />
@@ -115,9 +159,7 @@ export default function Home() {
 
 const BlogDisplaySkeleton = () => (
   <div className="p-6 space-y-6">
-    <Skeleton className="h-48 w-full rounded-md" />
-    <Skeleton className="h-48 w-full rounded-md" />
-    <Skeleton className="h-8 w-3/4 rounded-md mt-4" />
+    <Skeleton className="h-8 w-3/4 rounded-md" />
     <div className="space-y-4">
       <Skeleton className="h-4 w-full rounded-md" />
       <Skeleton className="h-4 w-full rounded-md" />

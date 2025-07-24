@@ -7,20 +7,23 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Share2, Download, ThumbsUp, ThumbsDown, Send, ClipboardCopy } from 'lucide-react';
+import { Copy, Share2, Download, ThumbsUp, ThumbsDown, Send, ClipboardCopy, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import type { ImageDetails } from '@/ai/flows/generate-blog-images';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from './ui/skeleton';
+
 
 interface BlogDisplayProps {
   htmlContent: string;
-  images: ImageDetails[];
+  images: ImageDetails[] | null; // Can be null if not requested, or empty array while loading
+  isGeneratingImages: boolean;
   rawOutput: string;
   onFeedback: (rating: 'up' | 'down') => void;
 }
 
-export function BlogDisplay({ htmlContent, images, rawOutput, onFeedback }: BlogDisplayProps) {
+export function BlogDisplay({ htmlContent, images, isGeneratingImages, rawOutput, onFeedback }: BlogDisplayProps) {
     const { toast } = useToast();
     const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
 
@@ -91,7 +94,7 @@ export function BlogDisplay({ htmlContent, images, rawOutput, onFeedback }: Blog
                 <TabsList>
                     <TabsTrigger value="preview">Preview</TabsTrigger>
                     <TabsTrigger value="html">HTML</TabsTrigger>
-                    {images && images.length > 0 && <TabsTrigger value="images">Image Details</TabsTrigger>}
+                    {images !== null && <TabsTrigger value="images">Image Details</TabsTrigger>}
                     <TabsTrigger value="output">Output</TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-1">
@@ -107,6 +110,12 @@ export function BlogDisplay({ htmlContent, images, rawOutput, onFeedback }: Blog
             <TabsContent value="preview" className="flex-grow mt-0 data-[state=inactive]:hidden">
                 <ScrollArea className="h-full">
                     <div className="p-6">
+                        {isGeneratingImages && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                <ImagePlaceholder />
+                                <ImagePlaceholder />
+                            </div>
+                        )}
                         {images && images.length > 0 && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                                 {images.map((img, index) => (
@@ -144,7 +153,8 @@ export function BlogDisplay({ htmlContent, images, rawOutput, onFeedback }: Blog
              <TabsContent value="images" className="flex-grow mt-0 data-[state=inactive]:hidden">
                 <ScrollArea className="h-full">
                     <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {images.map((image, index) => (
+                        {isGeneratingImages && <p>Generating image details...</p>}
+                        {images && images.map((image, index) => (
                             <div key={index} className="space-y-4">
                                 <h3 className="font-bold text-lg">Image {index + 1}</h3>
                                 <Image 
@@ -202,6 +212,13 @@ export function BlogDisplay({ htmlContent, images, rawOutput, onFeedback }: Blog
     </div>
   );
 }
+
+const ImagePlaceholder = () => (
+    <div className="w-full aspect-video bg-muted rounded-lg flex flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-2" />
+        <p className="text-sm text-muted-foreground">Generating image...</p>
+    </div>
+)
 
 interface MetadataFieldProps {
     label: string;

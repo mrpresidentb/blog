@@ -112,23 +112,29 @@ For example, if the topic is "The Benefits of Meditation for Programmers", good 
 
 Return only a JSON object with a 'queries' array. Example: {"queries": ["query 1", "query 2", "query 3"]}`;
     
-    const { output } = await ai.generate({
-      prompt,
-      model: 'googleai/gemini-2.5-flash',
-      output: {
-        format: 'json',
-        schema: z.object({ queries: z.array(z.string()) }),
-      }
-    });
-    
-    if (output?.queries && Array.isArray(output.queries) && output.queries.length > 0) {
-        console.log("Successfully generated and parsed search queries:", output.queries);
-        return output;
-    }
+    try {
+        const { output } = await ai.generate({
+          prompt,
+          model: 'googleai/gemini-2.5-flash',
+          output: {
+            format: 'json',
+            schema: z.object({ queries: z.array(z.string()) }),
+          }
+        });
+        
+        if (output?.queries && Array.isArray(output.queries) && output.queries.length > 0) {
+            console.log("Successfully generated and parsed search queries:", output.queries);
+            return output;
+        }
 
-    console.warn("Failed to generate or parse search queries as JSON, falling back to topic.");
-    // Fallback in case of parsing failure or empty array
-    return { queries: [topic] };
+        console.warn("Failed to generate or parse search queries as JSON, falling back to topic.");
+        // Fallback in case of parsing failure or empty array
+        return { queries: [topic] };
+
+    } catch(error) {
+        console.error("Error generating search queries:", error);
+        return { queries: [topic] };
+    }
   }
 );
 
@@ -257,7 +263,9 @@ const generateBlogPostFlow = ai.defineFlow({
     const research_context = relevantContent.join('\n\n---\n\n');
 
     console.log("HIGH QUALITY MODE: Aggregated research context. Length:", research_context.length);
-    debugInfo.researchContextSentToAI = research_context; // This might be very large
+    
+    // CORRECT PLACEMENT FOR LOGGING
+    debugInfo.researchContextSentToAI = research_context; 
 
     const promptInput = { ...promptInputBase, research_context };
     console.log('HIGH QUALITY MODE: Calling prompt with processed input and context.');

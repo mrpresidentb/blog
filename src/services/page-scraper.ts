@@ -102,12 +102,18 @@ async function scrapeWithStandard(url: string): Promise<ScrapedPage> {
  * @returns A promise that resolves to an object containing the raw HTML or an error message.
  */
 async function scrapeWithScraperAPI(targetUrl: string, apiKey: string): Promise<ScrapedPage> {
-    const scraperApiUrl = `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}`;
+    // Базовый URL с обязательными параметрами
+    let scraperApiUrl = `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}`;
+    
+    // ДОБАВЛЕНО: Дополнительные параметры из вашего примера
+    const additionalParams = '&render=true&follow_redirect=false&retry_404=true&device_type=desktop';
+    scraperApiUrl += additionalParams;
+
     try {
-        console.log(`[Page Scraper - ScraperAPI] Starting to scrape: ${targetUrl}`);
+        console.log(`[Page Scraper - ScraperAPI] Starting to scrape with options: ${targetUrl}`);
         
         const response = await axios.get(scraperApiUrl, {
-            timeout: 60000, // ScraperAPI can take longer
+            timeout: 90000, // Увеличим таймаут, т.к. рендеринг JS может быть долгим
         });
 
         if (response.status !== 200) {

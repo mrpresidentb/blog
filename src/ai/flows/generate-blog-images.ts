@@ -2,6 +2,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { uploadImageToStorage } from '@/services/firebase';
 
 // Schema for the prompt that generates image prompts
 const ImagePromptGeneratorInputSchema = z.object({
@@ -44,12 +45,12 @@ const generateImagePromptsFlow = ai.defineFlow(
   }
 );
 
-// Flow to generate an image from a single prompt
-const generateImageFlow = ai.defineFlow(
+// Flow to generate an image from a single prompt and upload it
+const generateAndUploadImageFlow = ai.defineFlow(
   {
-    name: 'generateImageFlow',
+    name: 'generateAndUploadImageFlow',
     inputSchema: z.string(),
-    outputSchema: z.string(),
+    outputSchema: z.string(), // This will be the public URL
   },
   async (prompt) => {
     console.log(`Generating image for prompt: "${prompt}"`);
@@ -65,10 +66,15 @@ const generateImageFlow = ai.defineFlow(
       console.error('Image generation failed, no media URL returned.');
       throw new Error('Image generation failed.');
     }
-    console.log('Image generation successful.');
-    return media.url;
+    console.log('Image generation successful, starting upload...');
+    
+    // Upload the image to Firebase Storage and get the public URL
+    const publicUrl = await uploadImageToStorage(media.url);
+    
+    return publicUrl;
   }
 );
+
 
 // Schema for image metadata
 const ImageMetadataSchema = z.object({
@@ -139,10 +145,10 @@ export const generateBlogImages = ai.defineFlow(
     const { prompts } = await generateImagePromptsFlow({ blogContent });
     console.log('Generated image prompts:', prompts);
 
-    // Step 2: Generate an image for each prompt in parallel
-    const imagePromises = prompts.map(prompt => generateImageFlow(prompt));
+    // Step 2: Generate and upload an image for each prompt in parallel
+    const imagePromises = prompts.map(prompt => generateAndUploadImageFlow(prompt));
     const imageUrls = await Promise.all(imagePromises);
-    console.log('All images generated successfully:', imageUrls);
+    console.log('All images generated and uploaded successfully:', imageUrls);
 
     // Step 3: Generate metadata for the images
     console.log('Generating image metadata...');

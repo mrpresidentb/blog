@@ -162,7 +162,7 @@ ${content.substring(0, 4000)}
         
         const answer = output?.toUpperCase().trim() || 'NO';
         console.log(`[Relevance Check] For topic "${topic}", AI answered: "${answer}"`);
-        return answer === 'YES';
+        return answer.startsWith('YES');
 
     } catch (error) {
         console.error('[Relevance Check] Error during relevance check:', error);

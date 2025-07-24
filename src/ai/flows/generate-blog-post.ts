@@ -4,6 +4,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import { performSearch } from '@/services/google-search';
+import { scrapePageContent } from '@/services/page-scraper';
 
 const GenerateBlogPostInputSchema = z.object({
   topic: z.string().describe('The topic of the blog post.'),
@@ -100,9 +101,15 @@ const generateSearchQueriesFlow = ai.defineFlow(
     outputSchema: z.object({ queries: z.array(z.string()) }),
   },
   async ({ topic }) => {
-    const prompt = `Generate 3 specific, high-quality Google search queries to research the topic: "${topic}".
-    The queries should be diverse to cover different aspects of the topic.
-    Return only a JSON object with a 'queries' array. For example: {"queries": ["query 1", "query 2", "query 3"]}`;
+    const prompt = `Generate 3-4 diverse, high-quality Google search queries to research the topic: "${topic}".
+    The queries should cover different angles of the topic to gather comprehensive information.
+    For example, if the topic is "The Benefits of Meditation for Programmers", good queries would be:
+    - "benefits of meditation for software developers"
+    - "mindfulness techniques for reducing burnout in tech"
+    - "impact of meditation on cognitive performance and focus"
+    - "how to start a meditation practice for busy professionals"
+
+    Return only a JSON object with a 'queries' array. Example: {"queries": ["query 1", "query 2", "query 3"]}`;
     
     const { output } = await ai.generate({
       prompt,
@@ -110,7 +117,12 @@ const generateSearchQueriesFlow = ai.defineFlow(
     });
     
     try {
-        return JSON.parse(output as string);
+        const parsedOutput = JSON.parse(output as string);
+        if (parsedOutput.queries && Array.isArray(parsedOutput.queries)) {
+            return parsedOutput;
+        }
+        // Fallback if parsing works but content is not as expected
+        return { queries: [topic] };
     } catch(e) {
         console.error("Failed to parse search queries:", e);
         // Fallback in case of parsing failure
@@ -163,19 +175,28 @@ const generateBlogPostFlow = ai.defineFlow({
     console.log("HIGH QUALITY MODE: Generated search queries:", queries);
     debugInfo.generatedSearchQueries = queries;
 
-    // 2. Perform searches
+    // 2. Perform searches to get URLs
     const searchPromises = queries.map(query => performSearch(query));
     const searchResultsArrays = await Promise.all(searchPromises);
     const searchResults = searchResultsArrays.flat();
     debugInfo.rawSearchResults = searchResults;
-    
-    // 3. Aggregate search context
-    const research_context = searchResults
-      .map((item, index) => `Source [${index+1}]: ${item.title}\nSnippet: ${item.snippet}\nLink: ${item.link}`)
+
+    const urlsToScrape = searchResults.map(r => r.link);
+    console.log(`HIGH QUALITY MODE: Found ${urlsToScrape.length} URLs to scrape.`);
+
+    // 3. Scrape page content for each URL
+    const scrapePromises = urlsToScrape.map(url => scrapePageContent(url));
+    const scrapedContents = await Promise.all(scrapePromises);
+    debugInfo.scrapedPageContents = scrapedContents; // Log full scraped content for debugging
+
+    // 4. Aggregate scraped content into research_context
+    const research_context = scrapedContents
+      .filter(content => content.success && content.textContent)
+      .map((content, index) => `Source [${index+1}] URL: ${content.url}\n\n'''\n${content.textContent}\n'''`)
       .join('\n\n---\n\n');
 
     console.log("HIGH QUALITY MODE: Aggregated research context. Length:", research_context.length);
-    debugInfo.researchContextSentToAI = research_context;
+    debugInfo.researchContextSentToAI = research_context; // This might be very large
 
     const promptInput = { ...promptInputBase, research_context };
     console.log('HIGH QUALITY MODE: Calling prompt with processed input and context.');

@@ -40,11 +40,6 @@ export function BlogDisplay({ htmlContent, images, isGeneratingImages, rawOutput
     }, [rawOutput]);
 
     const isHighQualityMode = parsedOutput.mode === 'High Quality (RAG)';
-    const highQualityDetails = {
-        'Generated Search Queries': parsedOutput.generatedSearchQueries,
-        'Raw Search Results': parsedOutput.rawSearchResults,
-        'Research Context Sent to AI': parsedOutput.researchContextSentToAI,
-    };
 
     const handleCopy = (text: string, type: string) => {
         navigator.clipboard.writeText(text);
@@ -225,16 +220,24 @@ export function BlogDisplay({ htmlContent, images, isGeneratingImages, rawOutput
                             <AccordionItem value="rag-details">
                                 <AccordionTrigger>High Quality Mode (RAG) Details</AccordionTrigger>
                                 <AccordionContent className="space-y-4">
-                                    {Object.entries(highQualityDetails).map(([key, value]) => (
-                                        <div key={key}>
-                                            <h4 className="font-semibold mb-2">{key}</h4>
-                                            <Textarea
-                                                className="font-code text-sm h-48 w-full bg-muted border-0 rounded-md resize-none focus-visible:ring-0"
-                                                value={value ? JSON.stringify(value, null, 2) : 'Not available.'}
-                                                readOnly
-                                            />
-                                        </div>
-                                    ))}
+                                    <DebugField
+                                        label="Generated Search Queries"
+                                        data={parsedOutput.generatedSearchQueries}
+                                    />
+                                    <DebugField
+                                        label="Raw Search Results (URLs)"
+                                        data={parsedOutput.rawSearchResults}
+                                    />
+                                    <DebugField
+                                        label="Scraped Page Contents"
+                                        data={parsedOutput.scrapedPageContents}
+                                        height="h-96"
+                                    />
+                                    <DebugField
+                                        label="Final Research Context Sent to AI"
+                                        data={parsedOutput.researchContextSentToAI}
+                                        height="h-96"
+                                    />
                                 </AccordionContent>
                             </AccordionItem>
                         )}
@@ -336,5 +339,17 @@ const MetadataField = ({ label, value, onCopy, isTextarea = false }: MetadataFie
                 <ClipboardCopy className="h-4 w-4" />
             </Button>
         </div>
+    </div>
+);
+
+// New component for displaying debug information in the accordion
+const DebugField = ({ label, data, height = 'h-48' }: { label: string, data: any, height?: string }) => (
+    <div>
+        <h4 className="font-semibold mb-2">{label}</h4>
+        <Textarea
+            className={`font-code text-sm w-full bg-muted border-0 rounded-md resize-y focus-visible:ring-0 ${height}`}
+            value={data ? JSON.stringify(data, null, 2) : 'Not available.'}
+            readOnly
+        />
     </div>
 );

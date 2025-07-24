@@ -36,17 +36,16 @@ const USER_AGENTS = [
 
 
 /**
- * Fetches a web page and extracts its main article content.
+ * Fetches a web page and extracts its main article content using standard axios.
  * 
  * @param url The URL of the page to scrape.
  * @returns A promise that resolves to an object containing the scraped content or an error message.
  */
 export async function scrapePageContent(url: string): Promise<ScrapedContent> {
   const randomUserAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-  console.log(`[Page Scraper] Starting to scrape: ${url} with User-Agent: ${randomUserAgent}`);
+  console.log(`[Page Scraper - Standard] Starting to scrape: ${url} with User-Agent: ${randomUserAgent}`);
   
   try {
-    // Fetch the HTML content of the page
     const response = await axios.get(url, {
       headers: {
         'User-Agent': randomUserAgent,
@@ -60,15 +59,12 @@ export async function scrapePageContent(url: string): Promise<ScrapedContent> {
 
     const html = response.data;
     
-    // Parse the HTML using JSDOM
     const doc = new JSDOM(html, { url });
-    
-    // Use Mozilla's Readability to extract the main content
     const reader = new Readability(doc.window.document);
     const article = reader.parse();
 
     if (!article || !article.textContent) {
-      console.warn(`[Page Scraper] Readability could not extract content from: ${url}`);
+      console.warn(`[Page Scraper - Standard] Readability could not extract content from: ${url}`);
       return {
         url,
         success: false,
@@ -77,12 +73,11 @@ export async function scrapePageContent(url: string): Promise<ScrapedContent> {
       };
     }
 
-    // Clean up excessive newlines and whitespace, but preserve paragraph breaks.
     const cleanedText = article.textContent
-      .replace(/(\s*\n\s*){2,}/g, '\n\n') // Replace 2+ newlines (with surrounding whitespace) with a double newline
-      .trim(); // Trim leading/trailing whitespace
+      .replace(/(\s*\n\s*){2,}/g, '\n\n')
+      .trim(); 
     
-    console.log(`[Page Scraper] Successfully extracted and cleaned content from: ${url}. Length: ${cleanedText.length}`);
+    console.log(`[Page Scraper - Standard] Successfully extracted content from: ${url}. Length: ${cleanedText.length}`);
     return {
       url,
       success: true,
@@ -92,7 +87,7 @@ export async function scrapePageContent(url: string): Promise<ScrapedContent> {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[Page Scraper] Failed to scrape ${url}:`, errorMessage);
+    console.error(`[Page Scraper - Standard] Failed to scrape ${url}:`, errorMessage);
     return {
       url,
       success: false,
@@ -100,4 +95,77 @@ export async function scrapePageContent(url: string): Promise<ScrapedContent> {
       userAgent: randomUserAgent,
     };
   }
+}
+
+
+/**
+ * Fetches a web page using ScraperAPI and extracts its main article content.
+ * 
+ * @param targetUrl The URL of the page to scrape.
+ * @returns A promise that resolves to an object containing the scraped content or an error message.
+ */
+export async function scrapePageContentWithScraperAPI(targetUrl: string): Promise<ScrapedContent> {
+    const apiKey = process.env.SCRAPERAPI_KEY;
+    console.log(`[Page Scraper - ScraperAPI] Starting to scrape: ${targetUrl}`);
+
+    if (!apiKey) {
+        const errorMsg = 'ScraperAPI key is not configured.';
+        console.error(`[Page Scraper - ScraperAPI] ${errorMsg}`);
+        return {
+            url: targetUrl,
+            success: false,
+            error: errorMsg,
+            userAgent: 'ScraperAPI',
+        };
+    }
+
+    const scraperApiUrl = `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}`;
+    
+    try {
+        const response = await axios.get(scraperApiUrl, {
+            timeout: 60000, // ScraperAPI can take longer, so increase timeout to 60s
+        });
+
+        if (response.status !== 200) {
+            throw new Error(`Request failed with status ${response.status}`);
+        }
+
+        const html = response.data;
+
+        const doc = new JSDOM(html, { url: targetUrl });
+        const reader = new Readability(doc.window.document);
+        const article = reader.parse();
+
+        if (!article || !article.textContent) {
+            console.warn(`[Page Scraper - ScraperAPI] Readability could not extract content from: ${targetUrl}`);
+            return {
+                url: targetUrl,
+                success: false,
+                error: 'Readability could not extract main content after ScraperAPI fetch.',
+                userAgent: 'ScraperAPI',
+            };
+        }
+
+        const cleanedText = article.textContent
+            .replace(/(\s*\n\s*){2,}/g, '\n\n')
+            .trim();
+
+        console.log(`[Page Scraper - ScraperAPI] Successfully extracted content from: ${targetUrl}. Length: ${cleanedText.length}`);
+        return {
+            url: targetUrl,
+            success: true,
+            textContent: cleanedText,
+            userAgent: 'ScraperAPI',
+        };
+
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[Page Scraper - ScraperAPI] Failed to scrape ${targetUrl}:`, errorMessage);
+        return {
+            url: targetUrl,
+            success: false,
+            error: errorMessage,
+            userAgent: 'ScraperAPI',
+        };
+    }
 }

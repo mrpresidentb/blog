@@ -4,7 +4,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import { performSearch, SearchResult } from '@/services/google-search';
-import { scrapePageContent } from '@/services/page-scraper';
+import { scrapePageContent, scrapePageContentWithScraperAPI } from '@/services/page-scraper';
 
 const GenerateBlogPostInputSchema = z.object({
   topic: z.string().describe('The topic of the blog post.'),
@@ -14,6 +14,7 @@ const GenerateBlogPostInputSchema = z.object({
   customLength: z.number().optional().describe('A custom number of sections for the article, if articleLength is "custom".'),
   highQuality: z.boolean().optional().describe('If true, the model should perform a more thorough and in-depth generation process.'),
   model: z.string().optional().describe('The AI model to use for generation.'),
+  scraperType: z.enum(['standard', 'scraper_api']).optional().describe('The scraper to use for High Quality mode.'),
 });
 
 export type GenerateBlogPostInput = z.infer<typeof GenerateBlogPostInputSchema>;
@@ -208,7 +209,8 @@ const generateBlogPostFlow = ai.defineFlow({
   if (input.highQuality) {
     console.log("HIGH QUALITY MODE: Starting RAG process...");
     debugInfo.mode = "High Quality (RAG)";
-    
+    debugInfo.scraperType = input.scraperType === 'scraper_api' ? 'ScraperAPI' : 'Standard';
+
     // 1. Generate search queries
     const { queries } = await generateSearchQueriesFlow({ topic: input.topic });
     console.log("HIGH QUALITY MODE: Generated search queries:", queries);
@@ -230,7 +232,11 @@ const generateBlogPostFlow = ai.defineFlow({
 
 
     // 3. Scrape page content for each URL
-    const scrapePromises = urlsToScrape.map(url => scrapePageContent(url));
+    const scrapePromises = urlsToScrape.map(url => 
+        input.scraperType === 'scraper_api'
+        ? scrapePageContentWithScraperAPI(url)
+        : scrapePageContent(url)
+    );
     const scrapedContents = await Promise.all(scrapePromises);
     
     // 4. Relevance Check and Content Aggregation

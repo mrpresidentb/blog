@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Wand2, Loader2, Info } from 'lucide-react';
 import type { GenerateBlogPostInput } from '@/ai/flows/generate-blog-post';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const formSchema = z.object({
   topic: z.string().min(5, {
@@ -37,6 +38,7 @@ const formSchema = z.object({
   articleLength: z.string().default('default'),
   customLength: z.coerce.number().optional(),
   highQuality: z.boolean().default(false),
+  scraperType: z.enum(['standard', 'scraper_api']).default('standard'),
   generateImages: z.boolean().default(false),
 }).refine(data => {
     if (data.articleLength === 'custom') {
@@ -65,6 +67,7 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
       articleLength: 'default',
       customLength: undefined,
       highQuality: false,
+      scraperType: 'standard',
       generateImages: false,
     },
     mode: 'onChange',
@@ -73,6 +76,11 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
   const articleLengthValue = useWatch({
     control: form.control,
     name: 'articleLength',
+  });
+  
+  const highQualityValue = useWatch({
+      control: form.control,
+      name: 'highQuality',
   });
 
   return (
@@ -243,6 +251,46 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
                     </FormItem>
                 )}
             />
+            
+            {highQualityValue && (
+                <FormField
+                    control={form.control}
+                    name="scraperType"
+                    render={({ field }) => (
+                        <FormItem className="space-y-3 rounded-lg border p-4">
+                            <FormLabel className="text-base">Scraper Service</FormLabel>
+                            <FormDescription>
+                                ScraperAPI is more powerful and reliable, but may incur costs.
+                            </FormDescription>
+                            <FormControl>
+                                <RadioGroup
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                                className="flex flex-col space-y-1"
+                                >
+                                <FormItem className="flex items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                    <RadioGroupItem value="standard" />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">
+                                    Standard
+                                    </FormLabel>
+                                </FormItem>
+                                <FormItem className="flex items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                    <RadioGroupItem value="scraper_api" />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">
+                                    ScraperAPI
+                                    </FormLabel>
+                                </FormItem>
+                                </RadioGroup>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            )}
             
             <Button 
               type="submit" 

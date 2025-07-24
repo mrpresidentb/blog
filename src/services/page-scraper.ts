@@ -43,9 +43,9 @@ const USER_AGENTS = [
  */
 export async function scrapePageContent(url: string): Promise<ScrapedContent> {
   const randomUserAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-  console.log(`[Page Scraper - Standard] Starting to scrape: ${url} with User-Agent: ${randomUserAgent}`);
   
   try {
+    console.log(`[Page Scraper - Standard] Starting to scrape: ${url} with User-Agent: ${randomUserAgent}`);
     const response = await axios.get(url, {
       headers: {
         'User-Agent': randomUserAgent,
@@ -87,7 +87,7 @@ export async function scrapePageContent(url: string): Promise<ScrapedContent> {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[Page Scraper - Standard] Failed to scrape ${url}:`, errorMessage);
+    console.error(`[Scraper] Critical failure at ${url}:`, errorMessage);
     return {
       url,
       success: false,
@@ -106,9 +106,9 @@ export async function scrapePageContent(url: string): Promise<ScrapedContent> {
  */
 export async function scrapePageContentWithScraperAPI(targetUrl: string): Promise<ScrapedContent> {
     const apiKey = process.env.SCRAPERAPI_KEY;
-    console.log(`[Page Scraper - ScraperAPI] Starting to scrape: ${targetUrl}`);
 
     try {
+        console.log(`[Page Scraper - ScraperAPI] Starting to scrape: ${targetUrl}`);
         if (!apiKey) {
             throw new Error('ScraperAPI key is not configured.');
         }
@@ -152,23 +152,8 @@ export async function scrapePageContentWithScraperAPI(targetUrl: string): Promis
         };
 
     } catch (error) {
-        let errorMessage = 'An unknown error occurred with ScraperAPI.';
-        if (axios.isAxiosError(error)) {
-            // Log more detailed info if it's an Axios error
-            errorMessage = `ScraperAPI request failed: ${error.message}.`;
-            if (error.response) {
-                // The request was made and the server responded with a status code
-                // that falls out of the range of 2xx
-                errorMessage += ` Status: ${error.response.status}. Data: ${JSON.stringify(error.response.data)}.`;
-            } else if (error.request) {
-                // The request was made but no response was received
-                errorMessage += ' No response received from ScraperAPI.';
-            }
-        } else if (error instanceof Error) {
-            errorMessage = `ScraperAPI error: ${error.message}`;
-        }
-        
-        console.error(`[Page Scraper - ScraperAPI] Failed to scrape ${targetUrl}:`, errorMessage);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[Scraper] Critical failure at ${targetUrl} with ScraperAPI:`, errorMessage);
         return {
             url: targetUrl,
             success: false,

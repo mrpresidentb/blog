@@ -230,7 +230,7 @@ export function BlogDisplay({ htmlContent, images, isGeneratingImages, rawOutput
                                     />
                                     <DebugField
                                         label="Scraped Page Contents & Relevance Check"
-                                        data={parsedOutput.relevanceCheckResults}
+                                        data={parsedOutput.scrapedPageContentsAndRelevance}
                                         height="h-96"
                                     />
                                     <DebugField

@@ -2,12 +2,7 @@
 import * as admin from 'firebase-admin';
 import { v4 as uuidv4 } from 'uuid';
 
-// Initialize Firebase Admin SDK
-if (!admin.apps.length) {
-  admin.initializeApp({
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  });
-}
+// Firebase Admin SDK is initialized in src/ai/genkit.ts
 
 const bucket = admin.storage().bucket();
 

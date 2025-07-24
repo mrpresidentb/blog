@@ -30,12 +30,17 @@ export async function handleGeneratePost(data: AppGeneratePostInput): Promise<Ap
     };
 
   } catch (error) {
-    console.error('HANDLE GENERATE POST: Error generating blog post:', error);
+    // This top-level catch is now a final safety net. 
+    // The flow itself should handle its errors and return debug info.
+    console.error('HANDLE GENERATE POST: UNHANDLED Error in action:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const rawError = JSON.stringify(error, Object.getOwnPropertyNames(error), 2);
+    const rawError = JSON.stringify({
+        unhandledActionError: errorMessage,
+        errorDetails: JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+    }, null, 2);
     
     return {
-      htmlContent: `<h1>Error Generating Post</h1><p>An error occurred: ${errorMessage}</p><p>Please check the server logs for more details.</p>`,
+      htmlContent: `<h1>Unhandled Server Error</h1><p>An unexpected error occurred in the action handler: ${errorMessage}</p><p>This indicates a problem outside the main generation flow. Please check the server logs.</p>`,
       rawOutput: rawError,
     };
   }

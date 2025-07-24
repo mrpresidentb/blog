@@ -184,166 +184,180 @@ const generateBlogPostFlow = ai.defineFlow({
   
   const debugInfo: Record<string, any> = {};
 
-  let articleLengthText = '';
-  if (input.articleLength) {
-    if (input.articleLength === 'custom' && input.customLength) {
-      articleLengthText = `${input.customLength} sections`;
-    } else if (input.articleLength === 'shorter') {
-      articleLengthText = 'Approx. 400-500 words.';
-    } else if (input.articleLength === 'short') {
-      articleLengthText = 'Approx. 500-600 words.';
-    } else if (input.articleLength === 'medium') {
-      articleLengthText = 'Approx. 600-700 words.';
-    } else if (input.articleLength === 'long') {
-      articleLengthText = 'Approx. 700-1000 words.';
-    } else if (input.articleLength === 'longer') {
-        articleLengthText = 'Approx. 1200-2000 words.';
-    } else if (input.articleLength === 'default') {
-        articleLengthText = 'Default length.';
-    }
-  }
-
-  const promptInputBase = {
-    ...input,
-    articleLengthText: articleLengthText || undefined,
-  };
-
-  // RAG flow for High Quality mode
-  if (input.highQuality) {
-    console.log("HIGH QUALITY MODE: Starting RAG process...");
-    debugInfo.mode = "High Quality (RAG)";
-    debugInfo.scraperType = input.scraperType === 'scraper_api' ? 'ScraperAPI' : 'Standard';
-
-    // 1. Generate search queries
-    const { queries } = await generateSearchQueriesFlow({ topic: input.topic });
-    console.log("HIGH QUALITY MODE: Generated search queries:", queries);
-    debugInfo.generatedSearchQueries = queries;
-
-    // 2. Perform searches and associate results with queries
-    const searchResultsByQuery: Record<string, SearchResult[]> = {};
-    const allUrls = new Set<string>();
-
-    for (const query of queries) {
-      const results = await performSearch(query);
-      searchResultsByQuery[query] = results;
-      results.forEach(r => allUrls.add(r.link));
-    }
-    debugInfo.rawSearchResults = searchResultsByQuery;
-
-    const urlsToScrape = Array.from(allUrls).slice(0, 10); // Limit to 10 unique urls
-    console.log(`HIGH QUALITY MODE: Found ${urlsToScrape.length} unique URLs to scrape.`);
-
-
-    // 3. Scrape page content for each URL
-    const scrapePromises = urlsToScrape.map(url => scrapePage(url, input.scraperType));
-    const settledScrapeResults = await Promise.allSettled(scrapePromises);
-    
-    const relevantContent: string[] = [];
-    const relevanceCheckResults: Record<string, any> = {};
-
-    // 4. Process settled results: Clean, Check Relevance, and Aggregate
-    for (const result of settledScrapeResults) {
-        if (result.status !== 'fulfilled' || !result.value) {
-            const reason = 'reason' in result ? (result.reason instanceof Error ? result.reason.message : String(result.reason)) : 'Unknown fulfillment error';
-            console.error('[generateBlogPostFlow] A scrape promise was unexpectedly rejected or empty:', reason);
-            continue;
+  try {
+      let articleLengthText = '';
+      if (input.articleLength) {
+        if (input.articleLength === 'custom' && input.customLength) {
+          articleLengthText = `${input.customLength} sections`;
+        } else if (input.articleLength === 'shorter') {
+          articleLengthText = 'Approx. 400-500 words.';
+        } else if (input.articleLength === 'short') {
+          articleLengthText = 'Approx. 500-600 words.';
+        } else if (input.articleLength === 'medium') {
+          articleLengthText = 'Approx. 600-700 words.';
+        } else if (input.articleLength === 'long') {
+          articleLengthText = 'Approx. 700-1000 words.';
+        } else if (input.articleLength === 'longer') {
+            articleLengthText = 'Approx. 1200-2000 words.';
+        } else if (input.articleLength === 'default') {
+            articleLengthText = 'Default length.';
         }
+      }
+
+      const promptInputBase = {
+        ...input,
+        articleLengthText: articleLengthText || undefined,
+      };
+
+      // RAG flow for High Quality mode
+      if (input.highQuality) {
+        console.log("HIGH QUALITY MODE: Starting RAG process...");
+        debugInfo.mode = "High Quality (RAG)";
+        debugInfo.scraperType = input.scraperType === 'scraper_api' ? 'ScraperAPI' : 'Standard';
+
+        // 1. Generate search queries
+        const { queries } = await generateSearchQueriesFlow({ topic: input.topic });
+        console.log("HIGH QUALITY MODE: Generated search queries:", queries);
+        debugInfo.generatedSearchQueries = queries;
+
+        // 2. Perform searches and associate results with queries
+        const searchResultsByQuery: Record<string, SearchResult[]> = {};
+        const allUrls = new Set<string>();
+
+        for (const query of queries) {
+          const results = await performSearch(query);
+          searchResultsByQuery[query] = results;
+          results.forEach(r => allUrls.add(r.link));
+        }
+        debugInfo.rawSearchResults = searchResultsByQuery;
+
+        const urlsToScrape = Array.from(allUrls).slice(0, 10); // Limit to 10 unique urls
+        console.log(`HIGH QUALITY MODE: Found ${urlsToScrape.length} unique URLs to scrape.`);
+
+
+        // 3. Scrape page content for each URL
+        const scrapePromises = urlsToScrape.map(url => scrapePage(url, input.scraperType));
+        const settledScrapeResults = await Promise.allSettled(scrapePromises);
         
-        const scrapedPage: ScrapedPage = result.value;
+        const relevantContent: string[] = [];
+        const relevanceCheckResults: Record<string, any> = {};
 
-        // Step 3a: Log scraping result
-        if (!scrapedPage.success) {
-            relevanceCheckResults[scrapedPage.url] = {
-                isRelevant: false,
-                error: `Scraping failed: ${scrapedPage.error}`,
-                userAgent: scrapedPage.userAgent,
-                rawRequest: scrapedPage.rawRequestUrl,
-                rawResponse: scrapedPage.rawResponse,
-            };
-            continue;
-        }
-
-        // Step 3b: CLEAN - Parse with Readability
-        let cleanTextContent: string;
-        try {
-            if (!scrapedPage.htmlContent) {
-                 throw new Error('Scraped page has no HTML content.');
+        // 4. Process settled results: Clean, Check Relevance, and Aggregate
+        for (const result of settledScrapeResults) {
+            if (result.status !== 'fulfilled' || !result.value) {
+                const reason = result.status === 'rejected' ? (result.reason instanceof Error ? result.reason.message : String(result.reason)) : 'Unknown fulfillment error';
+                console.error('[generateBlogPostFlow] A scrape promise was unexpectedly rejected or empty:', reason);
+                // We can't know the URL if the promise was rejected without it, so we just log and continue.
+                continue; 
             }
-            const doc = new JSDOM(scrapedPage.htmlContent, { url: scrapedPage.url });
-            const reader = new Readability(doc.window.document);
-            const article = reader.parse();
+            
+            const scrapedPage: ScrapedPage = result.value;
 
-            if (!article || !article.textContent) {
-                 relevanceCheckResults[scrapedPage.url] = {
+            // Step 3a: Log scraping result
+            if (!scrapedPage.success) {
+                relevanceCheckResults[scrapedPage.url] = {
                     isRelevant: false,
-                    error: 'Readability could not extract main content.',
+                    error: `Scraping failed: ${scrapedPage.error}`,
                     userAgent: scrapedPage.userAgent,
                     rawRequest: scrapedPage.rawRequestUrl,
                     rawResponse: scrapedPage.rawResponse,
                 };
                 continue;
             }
-            cleanTextContent = article.textContent.replace(/(\s*\n\s*){2,}/g, '\n\n').trim();
 
-        } catch (e) {
-             relevanceCheckResults[scrapedPage.url] = {
-                isRelevant: false,
-                error: `Readability parsing failed: ${e instanceof Error ? e.message : String(e)}`,
+            // Step 3b: CLEAN - Parse with Readability
+            let cleanTextContent: string;
+            try {
+                if (!scrapedPage.htmlContent) {
+                     throw new Error('Scraped page has no HTML content.');
+                }
+                const doc = new JSDOM(scrapedPage.htmlContent, { url: scrapedPage.url });
+                const reader = new Readability(doc.window.document);
+                const article = reader.parse();
+
+                if (!article || !article.textContent) {
+                     relevanceCheckResults[scrapedPage.url] = {
+                        isRelevant: false,
+                        error: 'Readability could not extract main content.',
+                        userAgent: scrapedPage.userAgent,
+                        rawRequest: scrapedPage.rawRequestUrl,
+                        rawResponse: scrapedPage.rawResponse,
+                    };
+                    continue;
+                }
+                cleanTextContent = article.textContent.replace(/(\s*\n\s*){2,}/g, '\n\n').trim();
+
+            } catch (e) {
+                 relevanceCheckResults[scrapedPage.url] = {
+                    isRelevant: false,
+                    error: `Readability parsing failed: ${e instanceof Error ? e.message : String(e)}`,
+                    userAgent: scrapedPage.userAgent,
+                    rawRequest: scrapedPage.rawRequestUrl,
+                    rawResponse: scrapedPage.rawResponse,
+                };
+                continue;
+            }
+
+            // Step 3c: RELEVANCE CHECK on clean content
+            const isRelevant = await checkRelevanceFlow({
+                topic: input.topic,
+                content: cleanTextContent,
+            });
+
+            relevanceCheckResults[scrapedPage.url] = {
+                isRelevant,
+                preview: cleanTextContent.substring(0, 200) + '...',
                 userAgent: scrapedPage.userAgent,
                 rawRequest: scrapedPage.rawRequestUrl,
                 rawResponse: scrapedPage.rawResponse,
             };
-            continue;
+
+            // Step 3d: ADD TO CONTEXT if relevant
+            if (isRelevant) {
+                relevantContent.push(`Source URL: ${scrapedPage.url}\n\n'''\n${cleanTextContent}\n'''`);
+            }
+        }
+        debugInfo.scrapedPageContentsAndRelevance = relevanceCheckResults;
+
+        const research_context = relevantContent.join('\n\n---\n\n');
+        console.log("HIGH QUALITY MODE: Aggregated research context. Length:", research_context.length);
+        
+        if (research_context) {
+            debugInfo.researchContextSentToAI = research_context;
+        } else {
+            debugInfo.researchContextSentToAI = "No relevant content found after scraping and filtering. The model will generate the post based on its internal knowledge.";
         }
 
-        // Step 3c: RELEVANCE CHECK on clean content
-        const isRelevant = await checkRelevanceFlow({
-            topic: input.topic,
-            content: cleanTextContent,
-        });
+        const promptInput = { ...promptInputBase, research_context };
+        console.log('HIGH QUALITY MODE: Calling prompt with processed input and context.');
+        const {output} = await highQualityBlogPostPrompt(promptInput, { model: input.model });
 
-        relevanceCheckResults[scrapedPage.url] = {
-            isRelevant,
-            preview: cleanTextContent.substring(0, 200) + '...',
-            userAgent: scrapedPage.userAgent,
-            rawRequest: scrapedPage.rawRequestUrl,
-            rawResponse: scrapedPage.rawResponse,
+        if (!output || !output.htmlContent) {
+          throw new Error('AI returned empty or invalid output for high-quality post.');
+        }
+        return { ...output, debugInfo };
+
+      } else {
+        // Standard flow
+        console.log('STANDARD MODE: Calling prompt with processed input.');
+        debugInfo.mode = "Standard";
+        const {output} = await standardBlogPostPrompt(promptInputBase, { model: input.model });
+
+        if (!output || !output.htmlContent) {
+          throw new Error('AI returned empty or invalid output for standard post.');
+        }
+        return { ...output, debugInfo };
+      }
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error("CRITICAL ERROR in generateBlogPostFlow:", error);
+        debugInfo.criticalError = {
+            message: errorMessage,
+            stack: error instanceof Error ? error.stack : undefined,
         };
-
-        // Step 3d: ADD TO CONTEXT if relevant
-        if (isRelevant) {
-            relevantContent.push(`Source URL: ${scrapedPage.url}\n\n'''\n${cleanTextContent}\n'''`);
-        }
+        return {
+            htmlContent: `<h1>Error Generating Post</h1><p>A critical error occurred: ${errorMessage}</p><p>Please check the 'Output' tab for detailed logs.</p>`,
+            debugInfo: debugInfo,
+        };
     }
-    debugInfo.scrapedPageContentsAndRelevance = relevanceCheckResults;
-
-    const research_context = relevantContent.join('\n\n---\n\n');
-    console.log("HIGH QUALITY MODE: Aggregated research context. Length:", research_context.length);
-    
-    if (research_context) {
-        debugInfo.researchContextSentToAI = research_context;
-    } else {
-        debugInfo.researchContextSentToAI = "No relevant content found after scraping and filtering. The model will generate the post based on its internal knowledge.";
-    }
-
-    const promptInput = { ...promptInputBase, research_context };
-    console.log('HIGH QUALITY MODE: Calling prompt with processed input and context.');
-    const {output} = await highQualityBlogPostPrompt(promptInput, { model: input.model });
-
-    if (!output || !output.htmlContent) {
-      throw new Error('AI returned empty or invalid output for high-quality post.');
-    }
-    return { ...output, debugInfo };
-
-  } else {
-    // Standard flow
-    console.log('STANDARD MODE: Calling prompt with processed input.');
-    debugInfo.mode = "Standard";
-    const {output} = await standardBlogPostPrompt(promptInputBase, { model: input.model });
-
-    if (!output || !output.htmlContent) {
-      throw new Error('AI returned empty or invalid output for standard post.');
-    }
-    return { ...output, debugInfo };
-  }
 });

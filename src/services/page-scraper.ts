@@ -108,20 +108,13 @@ export async function scrapePageContentWithScraperAPI(targetUrl: string): Promis
     const apiKey = process.env.SCRAPERAPI_KEY;
     console.log(`[Page Scraper - ScraperAPI] Starting to scrape: ${targetUrl}`);
 
-    if (!apiKey) {
-        const errorMsg = 'ScraperAPI key is not configured.';
-        console.error(`[Page Scraper - ScraperAPI] ${errorMsg}`);
-        return {
-            url: targetUrl,
-            success: false,
-            error: errorMsg,
-            userAgent: 'ScraperAPI',
-        };
-    }
-
-    const scraperApiUrl = `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}`;
-    
     try {
+        if (!apiKey) {
+            throw new Error('ScraperAPI key is not configured.');
+        }
+
+        const scraperApiUrl = `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}`;
+        
         const response = await axios.get(scraperApiUrl, {
             timeout: 60000, // ScraperAPI can take longer, so increase timeout to 60s
         });

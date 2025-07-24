@@ -32,11 +32,12 @@ const GOOGLE_SEARCH_API_ENDPOINT = 'https://www.googleapis.com/customsearch/v1';
  * 
  * @param query The search query string.
  * @returns A promise that resolves to an array of search results.
- * @throws An error if the API key or search engine ID is not configured, or if the search fails.
+ * @throws An error if the search fails for reasons other than missing credentials.
  */
 export async function performSearch(query: string): Promise<SearchResult[]> {
   if (!API_KEY || !SEARCH_ENGINE_ID) {
-    throw new Error('Google Search API key or Search Engine ID is not configured in environment variables.');
+    console.warn('[Google Search] API key or Search Engine ID is not configured. Skipping search.');
+    return [];
   }
 
   const url = new URL(GOOGLE_SEARCH_API_ENDPOINT);

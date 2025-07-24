@@ -264,8 +264,12 @@ const generateBlogPostFlow = ai.defineFlow({
 
     console.log("HIGH QUALITY MODE: Aggregated research context. Length:", research_context.length);
     
-    // CORRECT PLACEMENT FOR LOGGING
-    debugInfo.researchContextSentToAI = research_context; 
+    // CORRECT PLACEMENT FOR LOGGING - BEFORE the AI call
+    if (research_context) {
+        debugInfo.researchContextSentToAI = research_context;
+    } else {
+        debugInfo.researchContextSentToAI = "No relevant content found after scraping and filtering. The model will generate the post based on its internal knowledge.";
+    }
 
     const promptInput = { ...promptInputBase, research_context };
     console.log('HIGH QUALITY MODE: Calling prompt with processed input and context.');

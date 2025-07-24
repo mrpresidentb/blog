@@ -5,8 +5,6 @@ import { v4 as uuidv4 } from 'uuid';
 // Firebase Admin SDK is initialized in src/ai/genkit.ts, which is loaded on startup.
 // This ensures that by the time any function in this file is called, the SDK is ready.
 
-const bucket = admin.storage().bucket();
-
 /**
  * Uploads an image from a data URI to Firebase Storage and returns the public URL.
  * @param dataUri The data URI of the image to upload.
@@ -14,6 +12,9 @@ const bucket = admin.storage().bucket();
  */
 export async function uploadImageToStorage(dataUri: string): Promise<string> {
   console.log('Uploading image to Firebase Storage...');
+  
+  // Moved bucket initialization inside the function to ensure Firebase is initialized.
+  const bucket = admin.storage().bucket();
 
   // Extract content type and base64 data from data URI
   const matches = dataUri.match(/^data:(.+);base64,(.+)$/);

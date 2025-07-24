@@ -1,3 +1,4 @@
+
 'use server';
 
 import { generateBlogPost, GenerateBlogPostInput, GenerateBlogPostOutput } from '@/ai/flows/generate-blog-post';
@@ -39,6 +40,7 @@ export async function handleGeneratePost(data: AppGeneratePostInput): Promise<Ap
 export type AppGenerateImagesOutput = { 
   images: ImageDetails[] | null;
   error?: string;
+  rawOutput?: string;
 }
 
 export async function handleGenerateImages(blogContent: string): Promise<AppGenerateImagesOutput> {
@@ -46,14 +48,18 @@ export async function handleGenerateImages(blogContent: string): Promise<AppGene
     try {
         const imageResult = await generateBlogImages({ blogContent });
         console.log('HANDLE GENERATE IMAGES: Image details received:', imageResult.images);
-        return { images: imageResult.images };
+        return { 
+            images: imageResult.images,
+            rawOutput: JSON.stringify(imageResult, null, 2),
+        };
     } catch (error) {
         console.error('HANDLE GENERATE IMAGES: Error generating images:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         const rawError = JSON.stringify(error, Object.getOwnPropertyNames(error), 2);
         return { 
             images: [], 
-            error: `An error occurred during image generation: ${errorMessage}\n\nRaw Error: ${rawError}` 
+            error: `An error occurred during image generation: ${errorMessage}`,
+            rawOutput: rawError,
         };
     }
 }

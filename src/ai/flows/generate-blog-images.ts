@@ -3,7 +3,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { uploadImageToStorage } from '@/services/firebase';
+// import { uploadImageToStorage } from '@/services/firebase';
 
 // Schema for the prompt that generates image prompts
 const ImagePromptGeneratorInputSchema = z.object({
@@ -83,43 +83,6 @@ const generateImageFlow = ai.defineFlow(
 );
 
 
-// Schema for image metadata
-const ImageMetadataSchema = z.object({
-    altText: z.string().describe("Descriptive alt text for the image, for accessibility."),
-    title: z.string().describe("A concise, descriptive title for the image file or attachment page."),
-    caption: z.string().describe("A short caption to display under the image."),
-    description: z.string().describe("A more detailed description of the image and its context within the article."),
-});
-export type ImageMetadata = z.infer<typeof ImageMetadataSchema>;
-
-const ImageMetadataOutputSchema = z.object({
-    metadata: z.array(ImageMetadataSchema),
-});
-
-// Prompt to generate metadata for images
-const imageMetadataGenerator = ai.definePrompt({
-    name: 'imageMetadataGenerator',
-    input: { schema: z.object({ blogContent: z.string(), prompts: z.array(z.string()) }) },
-    output: { schema: ImageMetadataOutputSchema },
-    prompt: `You are an expert in SEO and accessibility.
-Based on the blog post content and the prompts used to generate the images, create metadata for each of the two images.
-For each image, provide:
-1.  **Alt Text:** A description for screen readers. Be descriptive about what the image shows.
-2.  **Title:** A concise, keyword-rich title.
-3.  **Caption:** A brief, engaging caption to display below the image.
-4.  **Description:** A longer description for the media library, explaining the image's relevance.
-
-Blog Content:
-{{{blogContent}}}
-
-Image Prompts:
-1. {{{prompts.[0]}}}
-2. {{{prompts.[1]}}}
-
-Generate the metadata for both images.
-`,
-});
-
 // Main flow that orchestrates generating prompts and then generating images
 const GenerateBlogImagesInputSchema = z.object({
   blogContent: z.string(),
@@ -158,28 +121,17 @@ export const generateBlogImages = ai.defineFlow(
     const dataUris = await Promise.all(dataUriPromises);
     console.log('[generateBlogImagesFlow] All images generated successfully as data URIs.');
     
-    // Step 3: Upload each image to Firebase storage
-    console.log('[generateBlogImagesFlow] Uploading images to Firebase Storage...');
-    const uploadPromises = dataUris.map(uri => uploadImageToStorage(uri));
-    const imageUrls = await Promise.all(uploadPromises);
-    console.log('[generateBlogImagesFlow] All images uploaded successfully:', imageUrls);
-
-    // Step 4: Generate metadata for the images
-    console.log('[generateBlogImagesFlow] Generating image metadata...');
-    const metadataResult = await imageMetadataGenerator({ blogContent, prompts });
-    const metadatas = metadataResult.output?.metadata;
-    if (!metadatas || metadatas.length !== 2) {
-      throw new Error('Failed to generate image metadata.');
-    }
-    console.log('[generateBlogImagesFlow] Image metadata generated successfully:', metadatas);
-
-    // Step 5: Combine image URLs and metadata
-    const images: ImageDetails[] = imageUrls.map((url, index) => ({
-      url,
-      ...metadatas[index],
+    // For now, we are not uploading to storage or generating metadata to isolate the problem.
+    // We will return dummy metadata with the data URI as the URL.
+    const images: ImageDetails[] = dataUris.map((uri, index) => ({
+      url: uri, // Use the data URI directly
+      altText: `Generated image for prompt: ${prompts[index]}`,
+      title: `Generated Image ${index + 1}`,
+      caption: `This is caption for image ${index + 1}`,
+      description: `This is a longer description for the generated image ${index + 1}, based on the prompt.`,
     }));
     
-    console.log('[generateBlogImagesFlow] Process completed successfully.');
+    console.log('[generateBlogImagesFlow] Process completed successfully. Returning data URIs.');
     return { images };
   }
 );

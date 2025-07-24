@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -63,9 +64,9 @@ export default function Home() {
                   title: "Image Generation Failed",
                   description: "Could not generate images. See Output tab for details.",
                });
-               setBlogPost(prev => prev ? { ...prev, rawOutput: imageResult.error!, isGeneratingImages: false } : null);
+               setBlogPost(prev => prev ? { ...prev, rawOutput: `${prev.rawOutput}\n\n--- IMAGES ---\n${imageResult.rawOutput}`, isGeneratingImages: false } : null);
             } else {
-               setBlogPost(prev => prev ? { ...prev, images: imageResult.images, isGeneratingImages: false } : null);
+               setBlogPost(prev => prev ? { ...prev, images: imageResult.images, isGeneratingImages: false, rawOutput: `${prev.rawOutput}\n\n--- IMAGES ---\n${imageResult.rawOutput}` } : null);
                if (imageResult.images && imageResult.images.length > 0) {
                    toast({
                       title: "Images Generated!",
@@ -86,7 +87,7 @@ export default function Home() {
                 title: "Image Generation Error",
                 description: "An unexpected error occurred. See Output tab.",
              });
-             setBlogPost(prev => prev ? { ...prev, rawOutput: imageError, isGeneratingImages: false } : null);
+             setBlogPost(prev => prev ? { ...prev, rawOutput: `${prev.rawOutput}\n\n--- IMAGES ---\n${imageError}`, isGeneratingImages: false } : null);
           }
         }
 

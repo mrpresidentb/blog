@@ -262,7 +262,6 @@ const generateBlogPostFlow = ai.defineFlow({
     debugInfo.scrapedPageContentsAndRelevance = relevanceCheckResults;
 
     const research_context = relevantContent.join('\n\n---\n\n');
-
     console.log("HIGH QUALITY MODE: Aggregated research context. Length:", research_context.length);
     
     if (research_context) {

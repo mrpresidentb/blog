@@ -93,7 +93,7 @@ Please generate a complete, well-structured blog post.`,
 });
 
 
-// New flow to generate search queries for RAG
+// Flow to generate search queries for RAG
 const generateSearchQueriesFlow = ai.defineFlow(
   {
     name: 'generateSearchQueriesFlow',
@@ -131,6 +131,38 @@ Return only a JSON object with a 'queries' array. Example: {"queries": ["query 1
     return { queries: [topic] };
   }
 );
+
+// New flow to check for content relevance
+const checkRelevanceFlow = ai.defineFlow({
+    name: 'checkRelevanceFlow',
+    inputSchema: z.object({
+        topic: z.string(),
+        content: z.string(),
+    }),
+    outputSchema: z.boolean(),
+}, async ({ topic, content }) => {
+    const prompt = `Is the following text relevant for writing an article about '${topic}'? The text may contain menus, ads, or other unrelated information, focus on the main content. Answer only with 'YES' or 'NO'.
+
+Text:
+---
+${content.substring(0, 4000)}
+---`; // Use a substring to keep the check fast and cheap
+
+    try {
+        const { output } = await ai.generate({
+            prompt,
+            model: 'googleai/gemini-2.5-flash',
+        });
+        
+        const answer = output?.toUpperCase().trim() || 'NO';
+        console.log(`[Relevance Check] For topic "${topic}", AI answered: "${answer}"`);
+        return answer === 'YES';
+
+    } catch (error) {
+        console.error('[Relevance Check] Error during relevance check:', error);
+        return false; // Default to not relevant on error
+    }
+});
 
 
 const generateBlogPostFlow = ai.defineFlow({
@@ -196,11 +228,33 @@ const generateBlogPostFlow = ai.defineFlow({
     const scrapedContents = await Promise.all(scrapePromises);
     debugInfo.scrapedPageContents = scrapedContents; // Log full scraped content for debugging
 
-    // 4. Aggregate scraped content into research_context
-    const research_context = scrapedContents
-      .filter(content => content.success && content.textContent)
-      .map((content, index) => `Source [${index+1}] URL: ${content.url}\n\n'''\n${content.textContent}\n'''`)
-      .join('\n\n---\n\n');
+    // 4. Relevance Check and Content Aggregation
+    const relevantContent: string[] = [];
+    const relevanceCheckResults: Record<string, any> = {};
+
+    for (const content of scrapedContents) {
+        if (content.success && content.textContent) {
+            const isRelevant = await checkRelevanceFlow({
+                topic: input.topic,
+                content: content.textContent,
+            });
+            relevanceCheckResults[content.url] = {
+                isRelevant,
+                preview: content.textContent.substring(0, 200) + '...'
+            };
+            if (isRelevant) {
+                relevantContent.push(`Source URL: ${content.url}\n\n'''\n${content.textContent}\n'''`);
+            }
+        } else {
+             relevanceCheckResults[content.url] = {
+                isRelevant: false,
+                error: content.error
+            };
+        }
+    }
+    debugInfo.relevanceCheckResults = relevanceCheckResults;
+
+    const research_context = relevantContent.join('\n\n---\n\n');
 
     console.log("HIGH QUALITY MODE: Aggregated research context. Length:", research_context.length);
     debugInfo.researchContextSentToAI = research_context; // This might be very large

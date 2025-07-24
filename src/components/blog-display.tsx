@@ -225,12 +225,12 @@ export function BlogDisplay({ htmlContent, images, isGeneratingImages, rawOutput
                                         data={parsedOutput.generatedSearchQueries}
                                     />
                                     <DebugField
-                                        label="Raw Search Results (URLs)"
+                                        label="Raw Search Results (by Query)"
                                         data={parsedOutput.rawSearchResults}
                                     />
                                     <DebugField
-                                        label="Scraped Page Contents"
-                                        data={parsedOutput.scrapedPageContents}
+                                        label="Scraped Page Contents & Relevance Check"
+                                        data={parsedOutput.relevanceCheckResults}
                                         height="h-96"
                                     />
                                     <DebugField

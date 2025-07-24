@@ -20,9 +20,22 @@ export async function handleGeneratePost(data: AppGeneratePostInput): Promise<Ap
     const blogPostResult = await generateBlogPost(input);
     console.log('HANDLE GENERATE POST: Result from generateBlogPost:', JSON.stringify(blogPostResult, null, 2));
     
+    // Combine the main result and debug info into a single rawOutput string
+    const rawOutput = JSON.stringify(
+        { 
+            blogPostResult: {
+                htmlContent: `(See Preview tab)`,
+                ...blogPostResult
+            } 
+        }, 
+        null, 
+        2
+    );
+
     return { 
       htmlContent: blogPostResult.htmlContent,
-      rawOutput: JSON.stringify({ blogPostResult }, null, 2),
+      debugInfo: blogPostResult.debugInfo,
+      rawOutput: rawOutput,
     };
 
   } catch (error) {

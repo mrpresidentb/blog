@@ -26,6 +26,7 @@ const InternalPromptInputSchema = GenerateBlogPostInputSchema.extend({
 
 const GenerateBlogPostOutputSchema = z.object({
   htmlContent: z.string().describe('The complete blog post content with HTML tags.'),
+  debugInfo: z.record(z.any()).optional().describe("Debugging information about the generation process."),
 });
 
 export type GenerateBlogPostOutput = z.infer<typeof GenerateBlogPostOutputSchema>;
@@ -41,7 +42,7 @@ const standardBlogPostPrompt = ai.definePrompt({
     schema: InternalPromptInputSchema.omit({ research_context: true }),
   },
   output: {
-    schema: GenerateBlogPostOutputSchema,
+    schema: GenerateBlogPostOutputSchema.omit({ debugInfo: true }),
   },
   prompt: `You are an expert blog post writer. Your primary goal is to create engaging, well-researched, and SEO-optimized blog posts.
 The blog post MUST include standard HTML tags (e.g., <h1>, <h2>, <p>, <ul>, <li>, <strong>).
@@ -65,7 +66,7 @@ const highQualityBlogPostPrompt = ai.definePrompt({
     schema: InternalPromptInputSchema,
   },
   output: {
-    schema: GenerateBlogPostOutputSchema,
+    schema: GenerateBlogPostOutputSchema.omit({ debugInfo: true }),
   },
   prompt: `You are an expert blog post writer. Your primary goal is to write an original, insightful, and SEO-optimized blog post based on the provided research context.
 
@@ -126,6 +127,8 @@ const generateBlogPostFlow = ai.defineFlow({
 }, async (input) => {
   console.log('GENERATE BLOG POST FLOW: Input received:', JSON.stringify(input, null, 2));
   
+  const debugInfo: Record<string, any> = {};
+
   let articleLengthText = '';
   if (input.articleLength) {
     if (input.articleLength === 'custom' && input.customLength) {
@@ -153,22 +156,26 @@ const generateBlogPostFlow = ai.defineFlow({
   // RAG flow for High Quality mode
   if (input.highQuality) {
     console.log("HIGH QUALITY MODE: Starting RAG process...");
+    debugInfo.mode = "High Quality (RAG)";
     
     // 1. Generate search queries
     const { queries } = await generateSearchQueriesFlow({ topic: input.topic });
     console.log("HIGH QUALITY MODE: Generated search queries:", queries);
+    debugInfo.generatedSearchQueries = queries;
 
     // 2. Perform searches
     const searchPromises = queries.map(query => performSearch(query));
-    const searchResults = await Promise.all(searchPromises);
+    const searchResultsArrays = await Promise.all(searchPromises);
+    const searchResults = searchResultsArrays.flat();
+    debugInfo.rawSearchResults = searchResults;
     
     // 3. Aggregate search context
     const research_context = searchResults
-      .flat() // Flatten the array of arrays
       .map((item, index) => `Source [${index+1}]: ${item.title}\nSnippet: ${item.snippet}\nLink: ${item.link}`)
       .join('\n\n---\n\n');
 
     console.log("HIGH QUALITY MODE: Aggregated research context. Length:", research_context.length);
+    debugInfo.researchContextSentToAI = research_context;
 
     const promptInput = { ...promptInputBase, research_context };
     console.log('HIGH QUALITY MODE: Calling prompt with processed input and context.');
@@ -177,16 +184,17 @@ const generateBlogPostFlow = ai.defineFlow({
     if (!output || !output.htmlContent) {
       throw new Error('AI returned empty or invalid output for high-quality post.');
     }
-    return output;
+    return { ...output, debugInfo };
 
   } else {
     // Standard flow
     console.log('STANDARD MODE: Calling prompt with processed input.');
+    debugInfo.mode = "Standard";
     const {output} = await standardBlogPostPrompt(promptInputBase, { model: input.model });
 
     if (!output || !output.htmlContent) {
       throw new Error('AI returned empty or invalid output for standard post.');
     }
-    return output;
+    return { ...output, debugInfo };
   }
 });

@@ -3,7 +3,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
-import { performSearch } from '@/services/google-search';
+import { performSearch, SearchResult } from '@/services/google-search';
 import { scrapePageContent } from '@/services/page-scraper';
 
 const GenerateBlogPostInputSchema = z.object({
@@ -103,14 +103,14 @@ const generateSearchQueriesFlow = ai.defineFlow(
   async ({ topic }) => {
     const currentYear = new Date().getFullYear();
     const prompt = `Generate 3-4 diverse, high-quality Google search queries to research the topic: "${topic}".
-    The queries should cover different angles of the topic to gather comprehensive information for the current year, ${currentYear}.
-    For example, if the topic is "The Benefits of Meditation for Programmers", good queries would be:
-    - "benefits of meditation for software developers ${currentYear}"
-    - "mindfulness techniques for reducing burnout in tech"
-    - "impact of meditation on cognitive performance and focus"
-    - "how to start a meditation practice for busy professionals"
+The queries should cover different angles of the topic to gather comprehensive and current information.
+For example, if the topic is "The Benefits of Meditation for Programmers", good queries would be:
+- "benefits of meditation for software developers ${currentYear}"
+- "mindfulness techniques for reducing burnout in tech"
+- "impact of meditation on cognitive performance and focus"
+- "how to start a meditation practice for busy professionals"
 
-    Return only a JSON object with a 'queries' array. Example: {"queries": ["query 1", "query 2", "query 3"]}`;
+Return only a JSON object with a 'queries' array. Example: {"queries": ["query 1", "query 2", "query 3"]}`;
     
     const { output } = await ai.generate({
       prompt,
@@ -176,14 +176,20 @@ const generateBlogPostFlow = ai.defineFlow({
     console.log("HIGH QUALITY MODE: Generated search queries:", queries);
     debugInfo.generatedSearchQueries = queries;
 
-    // 2. Perform searches to get URLs
-    const searchPromises = queries.map(query => performSearch(query));
-    const searchResultsArrays = await Promise.all(searchPromises);
-    const searchResults = searchResultsArrays.flat();
-    debugInfo.rawSearchResults = searchResults;
+    // 2. Perform searches and associate results with queries
+    const searchResultsByQuery: Record<string, SearchResult[]> = {};
+    const allUrls = new Set<string>();
 
-    const urlsToScrape = searchResults.map(r => r.link).slice(0, 10); // Limit to 10 urls
-    console.log(`HIGH QUALITY MODE: Found ${urlsToScrape.length} URLs to scrape.`);
+    for (const query of queries) {
+      const results = await performSearch(query);
+      searchResultsByQuery[query] = results;
+      results.forEach(r => allUrls.add(r.link));
+    }
+    debugInfo.rawSearchResults = searchResultsByQuery;
+
+    const urlsToScrape = Array.from(allUrls).slice(0, 10); // Limit to 10 unique urls
+    console.log(`HIGH QUALITY MODE: Found ${urlsToScrape.length} unique URLs to scrape.`);
+
 
     // 3. Scrape page content for each URL
     const scrapePromises = urlsToScrape.map(url => scrapePageContent(url));

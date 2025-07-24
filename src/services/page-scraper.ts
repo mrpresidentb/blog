@@ -14,6 +14,8 @@ const ScrapedPageSchema = z.object({
     htmlContent: z.string().optional(),
     error: z.string().optional(),
     userAgent: z.string().optional(),
+    rawRequestUrl: z.string().url().optional(),
+    rawResponse: z.string().optional(),
 });
 
 export type ScrapedPage = z.infer<typeof ScrapedPageSchema>;
@@ -75,6 +77,8 @@ async function scrapeWithStandard(url: string): Promise<ScrapedPage> {
             success: true,
             htmlContent: response.data,
             userAgent: randomUserAgent,
+            rawRequestUrl: url,
+            rawResponse: response.data,
         };
 
     } catch (error) {
@@ -85,6 +89,8 @@ async function scrapeWithStandard(url: string): Promise<ScrapedPage> {
             success: false,
             error: errorMessage,
             userAgent: randomUserAgent,
+            rawRequestUrl: url,
+            rawResponse: errorMessage,
         };
     }
 }
@@ -96,9 +102,9 @@ async function scrapeWithStandard(url: string): Promise<ScrapedPage> {
  * @returns A promise that resolves to an object containing the raw HTML or an error message.
  */
 async function scrapeWithScraperAPI(targetUrl: string, apiKey: string): Promise<ScrapedPage> {
+    const scraperApiUrl = `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}`;
     try {
         console.log(`[Page Scraper - ScraperAPI] Starting to scrape: ${targetUrl}`);
-        const scraperApiUrl = `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}`;
         
         const response = await axios.get(scraperApiUrl, {
             timeout: 60000, // ScraperAPI can take longer
@@ -114,6 +120,8 @@ async function scrapeWithScraperAPI(targetUrl: string, apiKey: string): Promise<
             success: true,
             htmlContent: response.data,
             userAgent: 'ScraperAPI',
+            rawRequestUrl: scraperApiUrl,
+            rawResponse: response.data,
         };
 
     } catch (error) {
@@ -124,6 +132,8 @@ async function scrapeWithScraperAPI(targetUrl: string, apiKey: string): Promise<
             success: false,
             error: errorMessage,
             userAgent: 'ScraperAPI',
+            rawRequestUrl: scraperApiUrl,
+            rawResponse: errorMessage,
         };
     }
 }

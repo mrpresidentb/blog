@@ -229,9 +229,10 @@ export function BlogDisplay({ htmlContent, images, isGeneratingImages, rawOutput
                                         data={parsedOutput.rawSearchResults}
                                     />
                                     <DebugField
-                                        label="Scraped Page Contents & Relevance Check"
+                                        label="Scraped Page Details"
                                         data={parsedOutput.scrapedPageContentsAndRelevance}
                                         height="h-96"
+                                        isScraperLog
                                     />
                                     <DebugField
                                         label="Final Research Context Sent to AI"
@@ -343,13 +344,56 @@ const MetadataField = ({ label, value, onCopy, isTextarea = false }: MetadataFie
 );
 
 // New component for displaying debug information in the accordion
-const DebugField = ({ label, data, height = 'h-48' }: { label: string, data: any, height?: string }) => (
-    <div>
-        <h4 className="font-semibold mb-2">{label}</h4>
-        <Textarea
-            className={`font-code text-sm w-full bg-muted border-0 rounded-md resize-y focus-visible:ring-0 ${height}`}
-            value={data ? JSON.stringify(data, null, 2) : 'Not available.'}
-            readOnly
-        />
-    </div>
-);
+const DebugField = ({ label, data, height = 'h-48', isScraperLog = false }: { label: string, data: any, height?: string, isScraperLog?: boolean }) => {
+    
+    if (isScraperLog && data) {
+        return (
+             <div>
+                <h4 className="font-semibold mb-2">{label}</h4>
+                <Accordion type="multiple" className="w-full space-y-2">
+                {Object.entries(data).map(([url, log]: [string, any]) => (
+                    <AccordionItem value={url} key={url} className="bg-muted/50 rounded-md px-4 border">
+                        <AccordionTrigger className="py-2 text-left hover:no-underline">
+                           <span className={`mr-2 ${log.isRelevant ? 'text-green-500' : 'text-red-500'}`}>●</span>
+                           <span className="truncate flex-1">{url}</span>
+                        </AccordionTrigger>
+                        <AccordionContent className="space-y-3">
+                           <div>
+                                <h5 className="font-semibold text-xs mb-1">Status</h5>
+                                <p className="text-xs font-code">{log.isRelevant ? 'Relevant' : `Not Relevant (${log.error || 'No content'})`}</p>
+                           </div>
+                            <div>
+                                <h5 className="font-semibold text-xs mb-1">Raw Request URL</h5>
+                                <Textarea
+                                    className="font-code text-xs h-20 w-full bg-background border rounded-md resize-y focus-visible:ring-0"
+                                    value={log.rawRequest ? String(log.rawRequest) : 'Not available.'}
+                                    readOnly
+                                />
+                           </div>
+                            <div>
+                                <h5 className="font-semibold text-xs mb-1">Raw Response</h5>
+                                <Textarea
+                                    className="font-code text-xs h-40 w-full bg-background border rounded-md resize-y focus-visible:ring-0"
+                                    value={log.rawResponse ? String(log.rawResponse) : 'Not available.'}
+                                    readOnly
+                                />
+                           </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                ))}
+                </Accordion>
+            </div>
+        )
+    }
+    
+    return (
+        <div>
+            <h4 className="font-semibold mb-2">{label}</h4>
+            <Textarea
+                className={`font-code text-sm w-full bg-muted border-0 rounded-md resize-y focus-visible:ring-0 ${height}`}
+                value={data ? JSON.stringify(data, null, 2) : 'Not available.'}
+                readOnly
+            />
+        </div>
+    );
+}

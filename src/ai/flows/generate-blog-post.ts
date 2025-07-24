@@ -243,9 +243,10 @@ const generateBlogPostFlow = ai.defineFlow({
 
     // 4. Process settled results: Clean, Check Relevance, and Aggregate
     for (const result of settledScrapeResults) {
-        if (result.status !== 'fulfilled') {
-            console.error('[generateBlogPostFlow] A scrape promise was unexpectedly rejected:', result.reason);
-            continue; // Should not happen with the new scraper structure, but good for safety
+        if (result.status !== 'fulfilled' || !result.value) {
+            const reason = 'reason' in result ? (result.reason instanceof Error ? result.reason.message : String(result.reason)) : 'Unknown fulfillment error';
+            console.error('[generateBlogPostFlow] A scrape promise was unexpectedly rejected or empty:', reason);
+            continue;
         }
         
         const scrapedPage: ScrapedPage = result.value;
@@ -256,6 +257,8 @@ const generateBlogPostFlow = ai.defineFlow({
                 isRelevant: false,
                 error: `Scraping failed: ${scrapedPage.error}`,
                 userAgent: scrapedPage.userAgent,
+                rawRequest: scrapedPage.rawRequestUrl,
+                rawResponse: scrapedPage.rawResponse,
             };
             continue;
         }
@@ -263,6 +266,9 @@ const generateBlogPostFlow = ai.defineFlow({
         // Step 3b: CLEAN - Parse with Readability
         let cleanTextContent: string;
         try {
+            if (!scrapedPage.htmlContent) {
+                 throw new Error('Scraped page has no HTML content.');
+            }
             const doc = new JSDOM(scrapedPage.htmlContent, { url: scrapedPage.url });
             const reader = new Readability(doc.window.document);
             const article = reader.parse();
@@ -272,6 +278,8 @@ const generateBlogPostFlow = ai.defineFlow({
                     isRelevant: false,
                     error: 'Readability could not extract main content.',
                     userAgent: scrapedPage.userAgent,
+                    rawRequest: scrapedPage.rawRequestUrl,
+                    rawResponse: scrapedPage.rawResponse,
                 };
                 continue;
             }
@@ -282,6 +290,8 @@ const generateBlogPostFlow = ai.defineFlow({
                 isRelevant: false,
                 error: `Readability parsing failed: ${e instanceof Error ? e.message : String(e)}`,
                 userAgent: scrapedPage.userAgent,
+                rawRequest: scrapedPage.rawRequestUrl,
+                rawResponse: scrapedPage.rawResponse,
             };
             continue;
         }
@@ -296,6 +306,8 @@ const generateBlogPostFlow = ai.defineFlow({
             isRelevant,
             preview: cleanTextContent.substring(0, 200) + '...',
             userAgent: scrapedPage.userAgent,
+            rawRequest: scrapedPage.rawRequestUrl,
+            rawResponse: scrapedPage.rawResponse,
         };
 
         // Step 3d: ADD TO CONTEXT if relevant

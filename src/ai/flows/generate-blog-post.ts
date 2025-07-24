@@ -279,21 +279,28 @@ const generateBlogPostFlow = ai.defineFlow({
 
             // D. CLEAN - Parse with Readability
             let cleanTextContent: string;
-            try {
-                const doc = new JSDOM(scrapedPage.htmlContent, { url: scrapedPage.url });
-                const reader = new Readability(doc.window.document);
-                const article = reader.parse();
+            
+            // If we used scraper_api with text output, we don't need Readability
+            if (input.scraperType === 'scraper_api') {
+                cleanTextContent = scrapedPage.htmlContent;
+            } else {
+                try {
+                    const doc = new JSDOM(scrapedPage.htmlContent, { url: scrapedPage.url });
+                    const reader = new Readability(doc.window.document);
+                    const article = reader.parse();
 
-                if (!article || !article.textContent) {
-                     relevanceCheckResults[scrapedPage.url].error = 'Readability could not extract main content.';
+                    if (!article || !article.textContent) {
+                         relevanceCheckResults[scrapedPage.url].error = 'Readability could not extract main content.';
+                         continue;
+                    }
+                    cleanTextContent = article.textContent.replace(/(\s*\n\s*){2,}/g, '\n\n').trim();
+
+                } catch (e) {
+                     relevanceCheckResults[scrapedPage.url].error = `Readability parsing failed: ${e instanceof Error ? e.message : String(e)}`;
                      continue;
                 }
-                cleanTextContent = article.textContent.replace(/(\s*\n\s*){2,}/g, '\n\n').trim();
-
-            } catch (e) {
-                 relevanceCheckResults[scrapedPage.url].error = `Readability parsing failed: ${e instanceof Error ? e.message : String(e)}`;
-                 continue;
             }
+
             relevanceCheckResults[scrapedPage.url].preview = cleanTextContent.substring(0, 200) + '...';
 
             // E. RELEVANCE CHECK on clean content

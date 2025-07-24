@@ -6,19 +6,17 @@
  */
 
 import axios from 'axios';
-import { JSDOM } from 'jsdom';
-import { Readability } from '@mozilla/readability';
 import { z } from 'zod';
 
-const ScrapedContentSchema = z.object({
+const ScrapedPageSchema = z.object({
     url: z.string().url(),
     success: z.boolean(),
-    textContent: z.string().optional(),
+    htmlContent: z.string().optional(),
     error: z.string().optional(),
     userAgent: z.string().optional(),
 });
 
-export type ScrapedContent = z.infer<typeof ScrapedContentSchema>;
+export type ScrapedPage = z.infer<typeof ScrapedPageSchema>;
 
 const USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -36,124 +34,91 @@ const USER_AGENTS = [
 
 
 /**
- * Fetches a web page and extracts its main article content using standard axios.
- * 
+ * A robust function to scrape a single page using either standard fetch or ScraperAPI.
  * @param url The URL of the page to scrape.
- * @returns A promise that resolves to an object containing the scraped content or an error message.
+ * @param type The scraper type to use.
+ * @returns A promise resolving to a ScrapedPage object.
  */
-export async function scrapePageContent(url: string): Promise<ScrapedContent> {
-  const randomUserAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-  
-  try {
-    console.log(`[Page Scraper - Standard] Starting to scrape: ${url} with User-Agent: ${randomUserAgent}`);
-    const response = await axios.get(url, {
-      headers: {
-        'User-Agent': randomUserAgent,
-      },
-      timeout: 15000, // 15 second timeout
-    });
-
-    if (response.status !== 200) {
-      throw new Error(`Request failed with status ${response.status}`);
+export async function scrapePage(url: string, type: 'standard' | 'scraper_api' = 'standard'): Promise<ScrapedPage> {
+    if (type === 'scraper_api') {
+        const apiKey = process.env.SCRAPERAPI_KEY;
+        if (apiKey) {
+            return scrapeWithScraperAPI(url, apiKey);
+        }
+        console.warn('ScraperAPI key not found, falling back to standard scraper.');
     }
-
-    const html = response.data;
-    
-    const doc = new JSDOM(html, { url });
-    const reader = new Readability(doc.window.document);
-    const article = reader.parse();
-
-    if (!article || !article.textContent) {
-      console.warn(`[Page Scraper - Standard] Readability could not extract content from: ${url}`);
-      return {
-        url,
-        success: false,
-        error: 'Readability could not extract main content.',
-        userAgent: randomUserAgent,
-      };
-    }
-
-    const cleanedText = article.textContent
-      .replace(/(\s*\n\s*){2,}/g, '\n\n')
-      .trim(); 
-    
-    console.log(`[Page Scraper - Standard] Successfully extracted content from: ${url}. Length: ${cleanedText.length}`);
-    return {
-      url,
-      success: true,
-      textContent: cleanedText,
-      userAgent: randomUserAgent,
-    };
-
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[Scraper] Critical failure at ${url}:`, errorMessage);
-    return {
-      url,
-      success: false,
-      error: errorMessage,
-      userAgent: randomUserAgent,
-    };
-  }
+    return scrapeWithStandard(url);
 }
 
+/**
+ * Fetches a web page using standard axios and returns raw HTML.
+ * @param url The URL of the page to scrape.
+ * @returns A promise that resolves to an object containing the raw HTML or an error message.
+ */
+async function scrapeWithStandard(url: string): Promise<ScrapedPage> {
+    const randomUserAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+  
+    try {
+        console.log(`[Page Scraper - Standard] Starting to scrape: ${url} with User-Agent: ${randomUserAgent}`);
+        const response = await axios.get(url, {
+            headers: { 'User-Agent': randomUserAgent },
+            timeout: 15000,
+        });
+
+        if (response.status !== 200) {
+            throw new Error(`Request failed with status ${response.status}`);
+        }
+        
+        console.log(`[Page Scraper - Standard] Successfully scraped: ${url}.`);
+        return {
+            url,
+            success: true,
+            htmlContent: response.data,
+            userAgent: randomUserAgent,
+        };
+
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[Scraper - Standard] Critical failure at ${url}:`, errorMessage);
+        return {
+            url,
+            success: false,
+            error: errorMessage,
+            userAgent: randomUserAgent,
+        };
+    }
+}
 
 /**
- * Fetches a web page using ScraperAPI and extracts its main article content.
- * 
+ * Fetches a web page using ScraperAPI and returns raw HTML.
  * @param targetUrl The URL of the page to scrape.
- * @returns A promise that resolves to an object containing the scraped content or an error message.
+ * @param apiKey The ScraperAPI key.
+ * @returns A promise that resolves to an object containing the raw HTML or an error message.
  */
-export async function scrapePageContentWithScraperAPI(targetUrl: string): Promise<ScrapedContent> {
-    const apiKey = process.env.SCRAPERAPI_KEY;
-
+async function scrapeWithScraperAPI(targetUrl: string, apiKey: string): Promise<ScrapedPage> {
     try {
         console.log(`[Page Scraper - ScraperAPI] Starting to scrape: ${targetUrl}`);
-        if (!apiKey) {
-            throw new Error('ScraperAPI key is not configured.');
-        }
-
         const scraperApiUrl = `http://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}`;
         
         const response = await axios.get(scraperApiUrl, {
-            timeout: 60000, // ScraperAPI can take longer, so increase timeout to 60s
+            timeout: 60000, // ScraperAPI can take longer
         });
 
         if (response.status !== 200) {
             throw new Error(`Request failed with status ${response.status}. Response: ${response.data}`);
         }
 
-        const html = response.data;
-
-        const doc = new JSDOM(html, { url: targetUrl });
-        const reader = new Readability(doc.window.document);
-        const article = reader.parse();
-
-        if (!article || !article.textContent) {
-            console.warn(`[Page Scraper - ScraperAPI] Readability could not extract content from: ${targetUrl}`);
-            return {
-                url: targetUrl,
-                success: false,
-                error: 'Readability could not extract main content after ScraperAPI fetch.',
-                userAgent: 'ScraperAPI',
-            };
-        }
-
-        const cleanedText = article.textContent
-            .replace(/(\s*\n\s*){2,}/g, '\n\n')
-            .trim();
-
-        console.log(`[Page Scraper - ScraperAPI] Successfully extracted content from: ${targetUrl}. Length: ${cleanedText.length}`);
+        console.log(`[Page Scraper - ScraperAPI] Successfully scraped: ${targetUrl}.`);
         return {
             url: targetUrl,
             success: true,
-            textContent: cleanedText,
+            htmlContent: response.data,
             userAgent: 'ScraperAPI',
         };
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[Scraper] Critical failure at ${targetUrl} with ScraperAPI:`, errorMessage);
+        console.error(`[Scraper - ScraperAPI] Critical failure at ${targetUrl}:`, errorMessage);
         return {
             url: targetUrl,
             success: false,

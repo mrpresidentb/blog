@@ -237,13 +237,27 @@ const generateBlogPostFlow = ai.defineFlow({
         ? scrapePageContentWithScraperAPI(url)
         : scrapePageContent(url)
     );
-    const scrapedContents = await Promise.all(scrapePromises);
+    // Use Promise.allSettled to handle individual promise failures gracefully
+    const settledScrapeResults = await Promise.allSettled(scrapePromises);
     
-    // 4. Relevance Check and Content Aggregation
     const relevantContent: string[] = [];
     const relevanceCheckResults: Record<string, any> = {};
 
-    for (const content of scrapedContents) {
+    // 4. Process settled results: Relevance Check and Content Aggregation
+    for (const result of settledScrapeResults) {
+        let content;
+        if (result.status === 'fulfilled') {
+            content = result.value;
+        } else {
+            // This case should be rare since our scraper functions catch errors and return an object.
+            // But as a fallback, we create an error object.
+            console.error('[generateBlogPostFlow] A scrape promise was rejected:', result.reason);
+            // We don't know the URL here, so we log it as unknown. A better implementation would pass the URL along with the promise.
+            // For now, this is a safeguard.
+            relevanceCheckResults['unknown_url'] = { isRelevant: false, error: 'Scrape promise was rejected: ' + result.reason };
+            continue;
+        }
+
         if (content.success && content.textContent) {
             const isRelevant = await checkRelevanceFlow({
                 topic: input.topic,

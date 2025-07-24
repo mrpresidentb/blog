@@ -46,7 +46,7 @@ const generateImagePromptsFlow = ai.defineFlow(
   }
 );
 
-// NEW: Flow to generate a single image from a prompt, returning a data URI
+// Flow to generate a single image from a prompt, returning a data URI
 const generateImageFlow = ai.defineFlow(
   {
     name: 'generateImageFlow',
@@ -54,21 +54,31 @@ const generateImageFlow = ai.defineFlow(
     outputSchema: z.string(), // This will be the data URI
   },
   async (prompt) => {
-    console.log(`Generating image for prompt: "${prompt}"`);
-    const { media } = await ai.generate({
-      model: 'googleai/gemini-2.0-flash-preview-image-generation',
-      prompt,
-      config: {
-        responseModalities: ['TEXT', 'IMAGE'],
-      },
-    });
+    console.log(`[generateImageFlow] Starting generation for prompt: "${prompt}"`);
+    try {
+      const result = await ai.generate({
+        model: 'googleai/gemini-2.0-flash-preview-image-generation',
+        prompt,
+        config: {
+          responseModalities: ['TEXT', 'IMAGE'],
+        },
+      });
 
-    if (!media?.url) {
-      console.error('Image generation failed, no media URL returned.');
-      throw new Error('Image generation failed.');
+      console.log('[generateImageFlow] Received response from AI:', JSON.stringify(result, null, 2));
+
+      const media = result.media;
+      if (!media?.url) {
+        console.error('[generateImageFlow] Image generation failed. No media URL in response.');
+        throw new Error('Image generation failed: No media URL returned from the AI.');
+      }
+
+      console.log('[generateImageFlow] Image generation successful, data URI received.');
+      return media.url;
+    } catch (error) {
+      console.error('[generateImageFlow] An error occurred during image generation:', error);
+      // Re-throw the error to be caught by the calling flow
+      throw new Error(`Failed to generate image for prompt "${prompt}". Reason: ${error instanceof Error ? error.message : String(error)}`);
     }
-    console.log('Image generation successful, data URI received.');
-    return media.url;
   }
 );
 
@@ -137,36 +147,39 @@ export const generateBlogImages = ai.defineFlow(
     outputSchema: GenerateBlogImagesOutputSchema,
   },
   async ({ blogContent }) => {
-    console.log('Starting to generate blog images...');
+    console.log('[generateBlogImagesFlow] Starting to generate blog images...');
     // Step 1: Generate prompts from the blog content
     const { prompts } = await generateImagePromptsFlow({ blogContent });
-    console.log('Generated image prompts:', prompts);
+    console.log('[generateBlogImagesFlow] Generated image prompts:', prompts);
 
     // Step 2: Generate an image for each prompt (get data URIs)
+    console.log('[generateBlogImagesFlow] Generating images from prompts...');
     const dataUriPromises = prompts.map(prompt => generateImageFlow(prompt));
     const dataUris = await Promise.all(dataUriPromises);
-    console.log('All images generated successfully as data URIs.');
+    console.log('[generateBlogImagesFlow] All images generated successfully as data URIs.');
     
     // Step 3: Upload each image to Firebase storage
+    console.log('[generateBlogImagesFlow] Uploading images to Firebase Storage...');
     const uploadPromises = dataUris.map(uri => uploadImageToStorage(uri));
     const imageUrls = await Promise.all(uploadPromises);
-    console.log('All images uploaded successfully:', imageUrls);
+    console.log('[generateBlogImagesFlow] All images uploaded successfully:', imageUrls);
 
     // Step 4: Generate metadata for the images
-    console.log('Generating image metadata...');
+    console.log('[generateBlogImagesFlow] Generating image metadata...');
     const metadataResult = await imageMetadataGenerator({ blogContent, prompts });
     const metadatas = metadataResult.output?.metadata;
     if (!metadatas || metadatas.length !== 2) {
       throw new Error('Failed to generate image metadata.');
     }
-    console.log('Image metadata generated successfully:', metadatas);
+    console.log('[generateBlogImagesFlow] Image metadata generated successfully:', metadatas);
 
     // Step 5: Combine image URLs and metadata
     const images: ImageDetails[] = imageUrls.map((url, index) => ({
       url,
       ...metadatas[index],
     }));
-
+    
+    console.log('[generateBlogImagesFlow] Process completed successfully.');
     return { images };
   }
 );

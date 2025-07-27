@@ -43,7 +43,12 @@ export async function generateBlogPost(input: GenerateBlogPostInput): Promise<Ge
   return generateBlogPostFlow(input);
 }
 
-const PromptOutputSchema = GenerateBlogPostOutputSchema.omit({ debugInfo: true });
+const PromptOutputSchema = z.object({
+  htmlContent: z.string().describe('The complete blog post content with HTML tags.'),
+  seoTitle: z.string().max(60).describe('An SEO-optimized title for the blog post. It MUST NOT exceed 60 characters.'),
+  seoDescription: z.string().max(160).describe('An SEO-optimized meta description for the blog post. It MUST NOT exceed 160 characters.'),
+});
+
 
 // Prompt for the standard generation flow
 const standardBlogPostPrompt = ai.definePrompt({
@@ -60,8 +65,8 @@ The output should be a complete blog post, with no placeholders or unfinished se
 You MUST use your extensive internal knowledge to write a creative and compelling post based on the provided topic, keywords, and tone.
 
 After writing the article, you MUST generate:
-1.  A concise, SEO-optimized title (max 60 characters).
-2.  A compelling meta description (max 160 characters) that includes the main keywords.
+1.  A concise, SEO-optimized title. IMPORTANT: The title must be a maximum of 60 characters.
+2.  A compelling meta description. IMPORTANT: The description must be a maximum of 160 characters.
 
 Topic: {{{topic}}}
 Keywords: {{{keywords}}}
@@ -98,8 +103,8 @@ Based on the research context above and your extensive knowledge, write a comple
 The blog post MUST include standard HTML tags (e.g., <h1>, <h2>, <p>, <ul>, <li>, <strong>).
 
 After writing the article, you MUST generate:
-1.  A concise, SEO-optimized title (max 60 characters).
-2.  A compelling meta description (max 160 characters) that includes the main keywords.
+1.  A concise, SEO-optimized title. IMPORTANT: The title must be a maximum of 60 characters.
+2.  A compelling meta description. IMPORTANT: The description must be a maximum of 160 characters.
 
 Topic: {{{topic}}}
 Keywords: {{{keywords}}}

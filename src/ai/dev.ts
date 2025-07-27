@@ -5,3 +5,4 @@ import './flows/generate-blog-post';
 import './flows/generate-blog-images';
 import './flows/improve-blog-post';
 import './flows/regenerate-seo-metadata';
+import './flows/generate-seo-only';

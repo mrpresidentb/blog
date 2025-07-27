@@ -23,6 +23,7 @@ import type { GenerateBlogPostInput } from '@/ai/flows/generate-blog-post';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from './ui/textarea';
+import { AppGeneratePostInput } from '@/app/actions';
 
 const formSchema = z.object({
   topic: z.string().min(5, {
@@ -36,6 +37,7 @@ const formSchema = z.object({
       message: 'Keywords must be at most 150 characters long.'
   }),
   model: z.string().default('googleai/gemini-2.5-pro'),
+  seoOnly: z.boolean().default(false),
   articleLength: z.string().default('default'),
   customLength: z.coerce.number().optional(),
   additionalInstructions: z.string().optional(),
@@ -43,7 +45,7 @@ const formSchema = z.object({
   scraperType: z.enum(['standard', 'scraper_api']).default('standard'),
   generateImages: z.boolean().default(false),
 }).refine(data => {
-    if (data.articleLength === 'custom') {
+    if (data.articleLength === 'custom' && !data.seoOnly) {
         return data.customLength !== undefined && data.customLength > 0;
     }
     return true;
@@ -55,7 +57,7 @@ const formSchema = z.object({
 type BlogFormValues = z.infer<typeof formSchema>;
 
 interface BlogFormProps {
-  onGenerate: (values: GenerateBlogPostInput & { generateImages?: boolean }) => void;
+  onGenerate: (values: AppGeneratePostInput) => void;
   loading: boolean;
 }
 
@@ -66,6 +68,7 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
       topic: '',
       keywords: '',
       model: 'googleai/gemini-2.5-pro',
+      seoOnly: false,
       articleLength: 'default',
       customLength: undefined,
       additionalInstructions: '',
@@ -76,15 +79,9 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
     mode: 'onChange',
   });
 
-  const articleLengthValue = useWatch({
-    control: form.control,
-    name: 'articleLength',
-  });
-  
-  const highQualityValue = useWatch({
-      control: form.control,
-      name: 'highQuality',
-  });
+  const watchSeoOnly = useWatch({ control: form.control, name: 'seoOnly' });
+  const articleLengthValue = useWatch({ control: form.control, name: 'articleLength' });
+  const highQualityValue = useWatch({ control: form.control, name: 'highQuality' });
 
   return (
     <Card className="shadow-lg">
@@ -153,73 +150,18 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
                 </FormItem>
                 )}
             />
-            
+
             <FormField
                 control={form.control}
-                name="articleLength"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel className="flex items-center gap-1">
-                        Article Length
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Info className="h-3 w-3 text-muted-foreground cursor-pointer" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>Choose the desired length for your article.</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    </FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                        <SelectTrigger>
-                        <SelectValue placeholder="Select article length" />
-                        </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        <SelectItem value="default">Default</SelectItem>
-                        <SelectItem value="shorter">Shorter (400-500 Words)</SelectItem>
-                        <SelectItem value="short">Short (500-600 Words)</SelectItem>
-                        <SelectItem value="medium">Medium (600-700 Words)</SelectItem>
-                        <SelectItem value="long">Long Form (700-1000 Words)</SelectItem>
-                        <SelectItem value="longer">Longer (1200-2000 Words)</SelectItem>
-                        <SelectItem value="custom">Custom Number of Sections</SelectItem>
-                    </SelectContent>
-                    </Select>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-
-            {articleLengthValue === 'custom' && (
-                <FormField
-                    control={form.control}
-                    name="customLength"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Custom Number of Sections</FormLabel>
-                        <FormControl>
-                            <Input type="number" placeholder="e.g., 4" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            )}
-
-             <FormField
-                control={form.control}
-                name="generateImages"
+                name="seoOnly"
                 render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
                         <FormLabel className="text-base">
-                        Include AI Images
+                        SEO Only
                         </FormLabel>
                         <FormDescription>
-                        Generate two unique images based on the article's content. This will take longer.
+                        Generate only the SEO Title and Description without the full article.
                         </FormDescription>
                     </div>
                     <FormControl>
@@ -232,90 +174,172 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
                 )}
             />
 
-            <FormField
-                control={form.control}
-                name="highQuality"
-                render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                        <FormLabel className="text-base">
-                        High Quality Mode
-                        </FormLabel>
-                        <FormDescription>
-                        The model will take more time to think and research for a better quality article.
-                        </FormDescription>
-                    </div>
-                    <FormControl>
-                        <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        />
-                    </FormControl>
-                    </FormItem>
-                )}
-            />
-            
-            {!highQualityValue && (
-                 <FormField
-                    control={form.control}
-                    name="additionalInstructions"
-                    render={({ field }) => (
+            {!watchSeoOnly && (
+                <>
+                    <FormField
+                        control={form.control}
+                        name="articleLength"
+                        render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Additional Instructions</FormLabel>
+                            <FormLabel className="flex items-center gap-1">
+                                Article Length
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Info className="h-3 w-3 text-muted-foreground cursor-pointer" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Choose the desired length for your article.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                                <Textarea
-                                placeholder="e.g., Focus on the impact on small businesses. Keep the tone slightly formal."
-                                className="resize-y"
-                                {...field}
+                                <SelectTrigger>
+                                <SelectValue placeholder="Select article length" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="default">Default</SelectItem>
+                                <SelectItem value="shorter">Shorter (400-500 Words)</SelectItem>
+                                <SelectItem value="short">Short (500-600 Words)</SelectItem>
+                                <SelectItem value="medium">Medium (600-700 Words)</SelectItem>
+                                <SelectItem value="long">Long Form (700-1000 Words)</SelectItem>
+                                <SelectItem value="longer">Longer (1200-2000 Words)</SelectItem>
+                                <SelectItem value="custom">Custom Number of Sections</SelectItem>
+                            </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+
+                    {articleLengthValue === 'custom' && (
+                        <FormField
+                            control={form.control}
+                            name="customLength"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Custom Number of Sections</FormLabel>
+                                <FormControl>
+                                    <Input type="number" placeholder="e.g., 4" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    )}
+
+                     <FormField
+                        control={form.control}
+                        name="generateImages"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                                <FormLabel className="text-base">
+                                Include AI Images
+                                </FormLabel>
+                                <FormDescription>
+                                Generate two unique images based on the article's content. This will take longer.
+                                </FormDescription>
+                            </div>
+                            <FormControl>
+                                <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
                                 />
                             </FormControl>
-                            <FormDescription>
-                                Provide any extra guidance for the AI writer (Standard Mode only).
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            )}
+                            </FormItem>
+                        )}
+                    />
 
-            {highQualityValue && (
-                <FormField
-                    control={form.control}
-                    name="scraperType"
-                    render={({ field }) => (
-                        <FormItem className="space-y-3 rounded-lg border p-4">
-                            <FormLabel className="text-base">Scraper Service</FormLabel>
-                            <FormDescription>
-                                ScraperAPI is more powerful and reliable, but may incur costs.
-                            </FormDescription>
+                    <FormField
+                        control={form.control}
+                        name="highQuality"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                                <FormLabel className="text-base">
+                                High Quality Mode
+                                </FormLabel>
+                                <FormDescription>
+                                The model will take more time to think and research for a better quality article.
+                                </FormDescription>
+                            </div>
                             <FormControl>
-                                <RadioGroup
-                                onValueChange={field.onChange}
-                                defaultValue={field.value}
-                                className="flex flex-col space-y-1"
-                                >
-                                <FormItem className="flex items-center space-x-3 space-y-0">
-                                    <FormControl>
-                                    <RadioGroupItem value="standard" />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">
-                                    Standard
-                                    </FormLabel>
-                                </FormItem>
-                                <FormItem className="flex items-center space-x-3 space-y-0">
-                                    <FormControl>
-                                    <RadioGroupItem value="scraper_api" />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">
-                                    ScraperAPI
-                                    </FormLabel>
-                                </FormItem>
-                                </RadioGroup>
+                                <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                />
                             </FormControl>
-                            <FormMessage />
-                        </FormItem>
+                            </FormItem>
+                        )}
+                    />
+                    
+                    {!highQualityValue && (
+                         <FormField
+                            control={form.control}
+                            name="additionalInstructions"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Additional Instructions</FormLabel>
+                                    <FormControl>
+                                        <Textarea
+                                        placeholder="e.g., Focus on the impact on small businesses. Keep the tone slightly formal."
+                                        className="resize-y"
+                                        {...field}
+                                        />
+                                    </FormControl>
+                                    <FormDescription>
+                                        Provide any extra guidance for the AI writer (Standard Mode only).
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                     )}
-                />
+
+                    {highQualityValue && (
+                        <FormField
+                            control={form.control}
+                            name="scraperType"
+                            render={({ field }) => (
+                                <FormItem className="space-y-3 rounded-lg border p-4">
+                                    <FormLabel className="text-base">Scraper Service</FormLabel>
+                                    <FormDescription>
+                                        ScraperAPI is more powerful and reliable, but may incur costs.
+                                    </FormDescription>
+                                    <FormControl>
+                                        <RadioGroup
+                                        onValueChange={field.onChange}
+                                        defaultValue={field.value}
+                                        className="flex flex-col space-y-1"
+                                        >
+                                        <FormItem className="flex items-center space-x-3 space-y-0">
+                                            <FormControl>
+                                            <RadioGroupItem value="standard" />
+                                            </FormControl>
+                                            <FormLabel className="font-normal">
+                                            Standard
+                                            </FormLabel>
+                                        </FormItem>
+                                        <FormItem className="flex items-center space-x-3 space-y-0">
+                                            <FormControl>
+                                            <RadioGroupItem value="scraper_api" />
+                                            </FormControl>
+                                            <FormLabel className="font-normal">
+                                            ScraperAPI
+                                            </FormLabel>
+                                        </FormItem>
+                                        </RadioGroup>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    )}
+                </>
             )}
             
             <Button 
@@ -329,7 +353,7 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
               ) : (
                 <Wand2 className="mr-2 h-5 w-5" />
               )}
-              Generate Post
+              {watchSeoOnly ? 'Generate SEO' : 'Generate Post'}
             </Button>
           </form>
         </Form>

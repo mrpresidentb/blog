@@ -5,8 +5,10 @@ import { generateBlogPost, GenerateBlogPostInput, GenerateBlogPostOutput } from 
 import { generateBlogImages, ImageDetails } from '@/ai/flows/generate-blog-images';
 import { improveBlogPost } from '@/ai/flows/improve-blog-post';
 import { regenerateSeoTitle, RegenerateSeoTitleInput, RegenerateSeoTitleOutput, regenerateSeoDescription, RegenerateSeoDescriptionInput, RegenerateSeoDescriptionOutput } from '@/ai/flows/regenerate-seo-metadata';
+import { generateSeoOnly } from '@/ai/flows/generate-seo-only';
 
-export type AppGeneratePostInput = GenerateBlogPostInput;
+
+export type AppGeneratePostInput = GenerateBlogPostInput & { seoOnly?: boolean };
 
 export type AppGeneratePostOutput = {
   htmlContent: string;
@@ -17,6 +19,25 @@ export type AppGeneratePostOutput = {
 
 export async function handleGeneratePost(data: AppGeneratePostInput): Promise<AppGeneratePostOutput> {
   console.log('HANDLE GENERATE POST: Received data:', JSON.stringify(data, null, 2));
+  
+  // SEO Only Mode
+  if (data.seoOnly) {
+    console.log('HANDLE GENERATE POST: SEO Only mode activated.');
+    const seoResult = await generateSeoOnly({
+        topic: data.topic,
+        keywords: data.keywords,
+        model: data.model,
+    });
+    const rawOutput = JSON.stringify(seoResult.debugInfo || {}, null, 2);
+    return {
+        htmlContent: `<h1>SEO Content Generated</h1><p>The "SEO Only" mode was enabled. You can find the generated title and description in the "SEO" tab.</p>`,
+        seoTitle: seoResult.seoTitle,
+        seoDescription: seoResult.seoDescription,
+        rawOutput: rawOutput,
+    }
+  }
+  
+  // Full Post Generation Mode
   try {
     const input: GenerateBlogPostInput = { ...data };
     

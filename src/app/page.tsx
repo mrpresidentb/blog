@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Wand2 } from 'lucide-react';
 import type { GenerateBlogPostInput } from '@/ai/flows/generate-blog-post';
-import { handleGeneratePost, handleFeedback, handleGenerateImages, AppGeneratePostOutput, handleRegenerateSeoTitle, handleRegenerateSeoDescription } from '@/app/actions';
+import { handleGeneratePost, handleFeedback, handleGenerateImages, AppGeneratePostOutput, handleRegenerateSeoTitle, handleRegenerateSeoDescription, AppGeneratePostInput } from '@/app/actions';
 import type { ImageDetails } from '@/ai/flows/generate-blog-images';
 import { useToast } from "@/hooks/use-toast";
 
@@ -29,7 +29,14 @@ export default function Home() {
   const { toast } = useToast();
 
   const onGenerateImages = async () => {
-    if (!blogPost) return;
+    if (!blogPost || blogPost.htmlContent.includes("<h1>SEO Content Generated</h1>")) {
+        toast({
+            variant: "destructive",
+            title: "Cannot Generate Images",
+            description: "Images can only be generated for a full blog post, not in 'SEO Only' mode.",
+        });
+        return;
+    }
 
     setBlogPost(prev => prev ? { ...prev, isGeneratingImages: true, images: [] } : null);
     toast({
@@ -74,7 +81,7 @@ export default function Home() {
   };
 
 
-  const onGenerate = async (data: GenerateBlogPostInput & { generateImages?: boolean }) => {
+  const onGenerate = async (data: AppGeneratePostInput) => {
     setLoading(true);
     setBlogPost(null);
     console.log('PAGE: Kicking off generation with data:', data);
@@ -88,22 +95,22 @@ export default function Home() {
         htmlContent: result.htmlContent,
         seoTitle: result.seoTitle,
         seoDescription: result.seoDescription,
-        images: data.generateImages ? [] : null, // Empty array indicates images are coming
+        images: data.generateImages && !data.seoOnly ? [] : null, // Empty array indicates images are coming
         rawOutput: result.rawOutput,
         imageRawOutput: '', // Initialize as empty
-        isGeneratingImages: !!data.generateImages,
+        isGeneratingImages: !!data.generateImages && !data.seoOnly,
         keywords: data.keywords, // Save keywords
       };
       setBlogPost(initialPostState);
 
-      if (result && result.htmlContent && !result.htmlContent.includes("<h1>Error")) {
+      if (result && result.seoTitle && !result.seoTitle.includes("Error")) {
         toast({
           title: "Success!",
-          description: "Your blog post has been generated.",
+          description: data.seoOnly ? "Your SEO metadata has been generated." : "Your blog post has been generated.",
         });
 
         // If images are requested, trigger generation now
-        if (data.generateImages) {
+        if (data.generateImages && !data.seoOnly) {
             // We reuse onGenerateImages, which now handles its own state updates for logs
             onGenerateImages(); 
         }
@@ -112,7 +119,7 @@ export default function Home() {
         toast({
           variant: "destructive",
           title: "Generation Failed",
-          description: "Could not generate the blog post. Please see the output tab for details.",
+          description: "Could not generate the content. Please see the output tab for details.",
         });
       }
     } catch (e) {

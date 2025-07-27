@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 
 interface BlogPostState {
   htmlContent: string;
+  seoTitle: string;
+  seoDescription: string;
   images: ImageDetails[] | null;
   rawOutput: string;
   imageRawOutput: string; // New field for image logs
@@ -83,6 +85,8 @@ export default function Home() {
       
       const initialPostState: BlogPostState = {
         htmlContent: result.htmlContent,
+        seoTitle: result.seoTitle,
+        seoDescription: result.seoDescription,
         images: data.generateImages ? [] : null, // Empty array indicates images are coming
         rawOutput: result.rawOutput,
         imageRawOutput: '', // Initialize as empty
@@ -112,7 +116,7 @@ export default function Home() {
     } catch (e) {
       const errorMessage = 'An unexpected error occurred. Please check the console and try again.';
       const rawError = e instanceof Error ? e.message : JSON.stringify(e, null, 2);
-      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`, images: null, rawOutput: rawError, imageRawOutput: '', isGeneratingImages: false});
+      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`, images: null, rawOutput: rawError, imageRawOutput: '', isGeneratingImages: false, seoTitle: 'Error', seoDescription: 'Error'});
       toast({
         variant: "destructive",
         title: "Error",
@@ -166,6 +170,8 @@ export default function Home() {
               {blogPost && (
                 <BlogDisplay 
                   htmlContent={blogPost.htmlContent}
+                  seoTitle={blogPost.seoTitle}
+                  seoDescription={blogPost.seoDescription}
                   images={blogPost.images}
                   isGeneratingImages={blogPost.isGeneratingImages}
                   rawOutput={blogPost.rawOutput}

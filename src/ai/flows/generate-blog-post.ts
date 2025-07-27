@@ -32,6 +32,8 @@ const InternalPromptInputSchema = GenerateBlogPostInputSchema.extend({
 
 const GenerateBlogPostOutputSchema = z.object({
   htmlContent: z.string().describe('The complete blog post content with HTML tags.'),
+  seoTitle: z.string().max(60).describe('An SEO-optimized title for the blog post, under 60 characters.'),
+  seoDescription: z.string().max(160).describe('An SEO-optimized meta description for the blog post, under 160 characters.'),
   debugInfo: z.record(z.any()).optional().describe("Debugging information about the generation process."),
 });
 
@@ -41,6 +43,8 @@ export async function generateBlogPost(input: GenerateBlogPostInput): Promise<Ge
   return generateBlogPostFlow(input);
 }
 
+const PromptOutputSchema = GenerateBlogPostOutputSchema.omit({ debugInfo: true });
+
 // Prompt for the standard generation flow
 const standardBlogPostPrompt = ai.definePrompt({
   name: 'standardBlogPostPrompt',
@@ -48,12 +52,16 @@ const standardBlogPostPrompt = ai.definePrompt({
     schema: InternalPromptInputSchema.omit({ research_context: true }),
   },
   output: {
-    schema: GenerateBlogPostOutputSchema.omit({ debugInfo: true }),
+    schema: PromptOutputSchema,
   },
-  prompt: `You are an expert blog post writer. Your primary goal is to create engaging, well-researched, and SEO-optimized blog posts.
+  prompt: `You are an expert blog post writer and SEO specialist. Your primary goal is to create engaging, well-researched, and SEO-optimized blog posts.
 The blog post MUST include standard HTML tags (e.g., <h1>, <h2>, <p>, <ul>, <li>, <strong>).
 The output should be a complete blog post, with no placeholders or unfinished sentences.
 You MUST use your extensive internal knowledge to write a creative and compelling post based on the provided topic, keywords, and tone.
+
+After writing the article, you MUST generate:
+1.  A concise, SEO-optimized title (max 60 characters).
+2.  A compelling meta description (max 160 characters) that includes the main keywords.
 
 Topic: {{{topic}}}
 Keywords: {{{keywords}}}
@@ -65,7 +73,7 @@ Article Length: {{{articleLengthText}}}
 Additional Instructions: {{{additionalInstructions}}}
 {{/if}}
 
-Please generate a complete blog post with HTML tags that is both informative and engaging.`,
+Please generate a complete blog post with HTML tags, an SEO title, and an SEO description.`,
 });
 
 // Prompt for the high-quality (RAG) generation flow
@@ -75,9 +83,9 @@ const highQualityBlogPostPrompt = ai.definePrompt({
     schema: InternalPromptInputSchema,
   },
   output: {
-    schema: GenerateBlogPostOutputSchema.omit({ debugInfo: true }),
+    schema: PromptOutputSchema,
   },
-  prompt: `You are an expert blog post writer. Your primary goal is to write an original, insightful, and SEO-optimized blog post based on the provided research context.
+  prompt: `You are an expert blog post writer and SEO specialist. Your primary goal is to write an original, insightful, and SEO-optimized blog post based on the provided research context.
 
 **DO NOT** simply copy the text from the research context. You must synthesize the information, add your own insights, and write a completely new article in your own words.
 
@@ -87,8 +95,11 @@ const highQualityBlogPostPrompt = ai.definePrompt({
 ---
 
 Based on the research context above and your extensive knowledge, write a complete blog post.
-
 The blog post MUST include standard HTML tags (e.g., <h1>, <h2>, <p>, <ul>, <li>, <strong>).
+
+After writing the article, you MUST generate:
+1.  A concise, SEO-optimized title (max 60 characters).
+2.  A compelling meta description (max 160 characters) that includes the main keywords.
 
 Topic: {{{topic}}}
 Keywords: {{{keywords}}}
@@ -97,7 +108,7 @@ Tone: {{{tone}}}
 Article Length: {{{articleLengthText}}}
 {{/if}}
 
-Please generate a complete, well-structured blog post.`,
+Please generate a complete, well-structured blog post, an SEO title, and an SEO description.`,
 });
 
 
@@ -235,7 +246,7 @@ const generateBlogPostFlow = ai.defineFlow({
         }
         debugInfo.rawSearchResults = searchResultsByQuery;
 
-        const urlsToScrape = Array.from(allUrls).slice(0, 5); // Limit to 5 unique urls
+        const urlsToScrape = Array.from(allUrls).slice(0, 5);
         console.log(`HIGH QUALITY MODE: Found ${urlsToScrape.length} unique URLs to scrape.`);
 
 
@@ -253,11 +264,9 @@ const generateBlogPostFlow = ai.defineFlow({
                 const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
                 console.error('[generateBlogPostFlow] A scrape promise was rejected:', reason);
                 // We don't know the URL if the promise was rejected without it, so we log and continue.
-                // You could enhance scrapePage to always wrap errors in an object with the URL.
                 continue; 
             }
 
-            // B. Handle fulfilled promises (scraper function returned a value)
             const scrapedPage: ScrapedPage = result.value;
 
             // Initialize log entry for this URL
@@ -270,7 +279,6 @@ const generateBlogPostFlow = ai.defineFlow({
                 preview: null,
             };
             
-            // C. Check if scraping was successful within the scraper function
             if (!scrapedPage.success) {
                 relevanceCheckResults[scrapedPage.url].error = `Scraping failed: ${scrapedPage.error}`;
                 continue;
@@ -284,7 +292,6 @@ const generateBlogPostFlow = ai.defineFlow({
             // D. CLEAN - Parse with Readability
             let cleanTextContent: string;
             
-            // If we used scraper_api with text output, we don't need Readability
             if (input.scraperType === 'scraper_api') {
                 cleanTextContent = scrapedPage.htmlContent;
             } else {
@@ -315,7 +322,6 @@ const generateBlogPostFlow = ai.defineFlow({
 
             relevanceCheckResults[scrapedPage.url].isRelevant = isRelevant;
 
-            // F. ADD TO CONTEXT if relevant
             if (isRelevant) {
                 relevantContent.push(`Source URL: ${scrapedPage.url}\\n\\n'''\\n${cleanTextContent}\\n'''`);
             }
@@ -360,6 +366,8 @@ const generateBlogPostFlow = ai.defineFlow({
         };
         return {
             htmlContent: `<h1>Error Generating Post</h1><p>A critical error occurred: ${errorMessage}</p><p>Please check the 'Output' tab for detailed logs.</p>`,
+            seoTitle: 'Error',
+            seoDescription: 'An error occurred during generation.',
             debugInfo: debugInfo,
         };
     }

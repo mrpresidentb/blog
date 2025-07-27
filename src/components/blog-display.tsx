@@ -19,6 +19,8 @@ import { Skeleton } from './ui/skeleton';
 
 interface BlogDisplayProps {
   htmlContent: string;
+  seoTitle: string;
+  seoDescription: string;
   images: ImageDetails[] | null; // Can be null if not requested, or empty array while loading
   isGeneratingImages: boolean;
   rawOutput: string;
@@ -27,7 +29,7 @@ interface BlogDisplayProps {
   onRegenerateImages: () => void;
 }
 
-export function BlogDisplay({ htmlContent, images, isGeneratingImages, rawOutput, imageRawOutput, onFeedback, onRegenerateImages }: BlogDisplayProps) {
+export function BlogDisplay({ htmlContent, seoTitle, seoDescription, images, isGeneratingImages, rawOutput, imageRawOutput, onFeedback, onRegenerateImages }: BlogDisplayProps) {
     const { toast } = useToast();
     const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
 
@@ -108,6 +110,7 @@ export function BlogDisplay({ htmlContent, images, isGeneratingImages, rawOutput
                 <TabsList>
                     <TabsTrigger value="preview">Preview</TabsTrigger>
                     <TabsTrigger value="html">HTML</TabsTrigger>
+                    <TabsTrigger value="seo">SEO</TabsTrigger>
                     {images !== null && <TabsTrigger value="images">Image Details</TabsTrigger>}
                     <TabsTrigger value="output">Output</TabsTrigger>
                 </TabsList>
@@ -164,6 +167,23 @@ export function BlogDisplay({ htmlContent, images, isGeneratingImages, rawOutput
                         value={htmlContent}
                         readOnly
                     />
+                </ScrollArea>
+            </TabsContent>
+            <TabsContent value="seo" className="flex-grow mt-0 data-[state=inactive]:hidden">
+                <ScrollArea className="h-full">
+                    <div className="p-6 space-y-6">
+                        <MetadataField 
+                            label={`SEO Title (${seoTitle.length} / 60)`}
+                            value={seoTitle} 
+                            onCopy={handleCopy} 
+                        />
+                         <MetadataField 
+                            label={`SEO Description (${seoDescription.length} / 160)`}
+                            value={seoDescription} 
+                            onCopy={handleCopy} 
+                            isTextarea 
+                        />
+                    </div>
                 </ScrollArea>
             </TabsContent>
              <TabsContent value="images" className="flex-grow mt-0 data-[state=inactive]:hidden">
@@ -327,14 +347,14 @@ const MetadataField = ({ label, value, onCopy, isTextarea = false }: MetadataFie
         <Label className="text-sm font-medium">{label}</Label>
         <div className="relative">
             {isTextarea ? (
-                <Textarea value={value} readOnly className="pr-10 bg-muted" rows={3} />
+                <Textarea value={value} readOnly className="pr-10 bg-muted" rows={4} />
             ) : (
                 <Input value={value} readOnly className="pr-10 bg-muted" />
             )}
             <Button 
                 variant="ghost" 
                 size="icon" 
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                className="absolute right-1 top-1.5 h-7 w-7"
                 onClick={() => onCopy(value, label)}
             >
                 <ClipboardCopy className="h-4 w-4" />

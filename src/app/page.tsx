@@ -20,6 +20,7 @@ interface BlogPostState {
   rawOutput: string;
   imageRawOutput: string;
   isGeneratingImages: boolean;
+  topic: string; // Store topic for regeneration
   keywords: string; // Store keywords for regeneration
 }
 
@@ -99,6 +100,7 @@ export default function Home() {
         rawOutput: result.rawOutput,
         imageRawOutput: '', // Initialize as empty
         isGeneratingImages: !!data.generateImages && !data.seoOnly,
+        topic: data.topic, // Save topic
         keywords: data.keywords, // Save keywords
       };
       setBlogPost(initialPostState);
@@ -125,7 +127,7 @@ export default function Home() {
     } catch (e) {
       const errorMessage = 'An unexpected error occurred. Please check the console and try again.';
       const rawError = e instanceof Error ? e.message : JSON.stringify(e, null, 2);
-      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`, images: null, rawOutput: rawError, imageRawOutput: '', isGeneratingImages: false, seoTitle: 'Error', seoDescription: 'Error', keywords: data.keywords});
+      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`, images: null, rawOutput: rawError, imageRawOutput: '', isGeneratingImages: false, seoTitle: 'Error', seoDescription: 'Error', topic: data.topic, keywords: data.keywords});
       toast({
         variant: "destructive",
         title: "Error",
@@ -157,7 +159,7 @@ export default function Home() {
   const onRegenerateSeoTitle = async () => {
     if (!blogPost) return;
     try {
-        const { seoTitle } = await handleRegenerateSeoTitle({ blogContent: blogPost.htmlContent, keywords: blogPost.keywords });
+        const { seoTitle } = await handleRegenerateSeoTitle({ topic: blogPost.topic, blogContent: blogPost.htmlContent, keywords: blogPost.keywords });
         setBlogPost(prev => prev ? { ...prev, seoTitle } : null);
         toast({ title: "SEO Title Regenerated!" });
     } catch (error) {
@@ -168,7 +170,7 @@ export default function Home() {
   const onRegenerateSeoDescription = async () => {
       if (!blogPost) return;
       try {
-          const { seoDescription } = await handleRegenerateSeoDescription({ blogContent: blogPost.htmlContent, keywords: blogPost.keywords });
+          const { seoDescription } = await handleRegenerateSeoDescription({ topic: blogPost.topic, blogContent: blogPost.htmlContent, keywords: blogPost.keywords });
           setBlogPost(prev => prev ? { ...prev, seoDescription } : null);
           toast({ title: "SEO Description Regenerated!" });
       } catch (error) {

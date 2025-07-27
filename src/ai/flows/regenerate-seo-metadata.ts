@@ -7,6 +7,7 @@ import { z } from 'zod';
 // --- SEO Title Regeneration ---
 
 const RegenerateSeoTitleInputSchema = z.object({
+  topic: z.string().describe('The original topic of the blog post.'),
   blogContent: z.string().describe('The full HTML content of the blog post.'),
   keywords: z.string().describe('Comma-separated keywords for SEO optimization.'),
 });
@@ -22,9 +23,11 @@ const regenerateSeoTitlePrompt = ai.definePrompt({
     name: 'regenerateSeoTitlePrompt',
     input: { schema: RegenerateSeoTitleInputSchema },
     output: { schema: RegenerateSeoTitleOutputSchema },
-    prompt: `Based on the following blog post and keywords, generate a new, concise, SEO-optimized title.
+    prompt: `Based on the blog post topic, its content, and the keywords, generate a new, concise, SEO-optimized title.
+The title must be highly relevant to the original topic.
 IMPORTANT: The title MUST be 60 characters or less.
 
+Topic: {{{topic}}}
 Keywords: {{{keywords}}}
 
 Blog Content:
@@ -54,6 +57,7 @@ export async function regenerateSeoTitle(input: RegenerateSeoTitleInput): Promis
 // --- SEO Description Regeneration ---
 
 const RegenerateSeoDescriptionInputSchema = z.object({
+  topic: z.string().describe('The original topic of the blog post.'),
   blogContent: z.string().describe('The full HTML content of the blog post.'),
   keywords: z.string().describe('Comma-separated keywords for SEO optimization.'),
 });
@@ -70,9 +74,11 @@ const regenerateSeoDescriptionPrompt = ai.definePrompt({
     name: 'regenerateSeoDescriptionPrompt',
     input: { schema: RegenerateSeoDescriptionInputSchema },
     output: { schema: RegenerateSeoDescriptionOutputSchema },
-    prompt: `Based on the following blog post and keywords, generate a new, compelling, SEO-optimized meta description.
+    prompt: `Based on the blog post topic, its content, and the keywords, generate a new, compelling, SEO-optimized meta description.
+The description must be highly relevant to the original topic.
 IMPORTANT: The description MUST be 160 characters or less.
 
+Topic: {{{topic}}}
 Keywords: {{{keywords}}}
 
 Blog Content:

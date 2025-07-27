@@ -15,6 +15,7 @@ import type { ImageDetails } from '@/ai/flows/generate-blog-images';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from './ui/skeleton';
+import { cn } from '@/lib/utils';
 
 
 interface BlogDisplayProps {
@@ -27,11 +28,15 @@ interface BlogDisplayProps {
   imageRawOutput: string;
   onFeedback: (rating: 'up' | 'down') => void;
   onRegenerateImages: () => void;
+  onRegenerateSeoTitle: () => void;
+  onRegenerateSeoDescription: () => void;
 }
 
-export function BlogDisplay({ htmlContent, seoTitle, seoDescription, images, isGeneratingImages, rawOutput, imageRawOutput, onFeedback, onRegenerateImages }: BlogDisplayProps) {
+export function BlogDisplay({ htmlContent, seoTitle, seoDescription, images, isGeneratingImages, rawOutput, imageRawOutput, onFeedback, onRegenerateImages, onRegenerateSeoTitle, onRegenerateSeoDescription }: BlogDisplayProps) {
     const { toast } = useToast();
     const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
+    const [isRegeneratingTitle, setIsRegeneratingTitle] = useState(false);
+    const [isRegeneratingDesc, setIsRegeneratingDesc] = useState(false);
 
     const parsedOutput = useMemo(() => {
         try {
@@ -49,6 +54,18 @@ export function BlogDisplay({ htmlContent, seoTitle, seoDescription, images, isG
             title: "Copied!",
             description: `${type} has been copied to your clipboard.`,
         });
+    };
+    
+    const handleRegenerateTitleClick = async () => {
+        setIsRegeneratingTitle(true);
+        await onRegenerateSeoTitle();
+        setIsRegeneratingTitle(false);
+    };
+
+    const handleRegenerateDescriptionClick = async () => {
+        setIsRegeneratingDesc(true);
+        await onRegenerateSeoDescription();
+        setIsRegeneratingDesc(false);
     };
 
     const handleShare = async () => {
@@ -172,16 +189,22 @@ export function BlogDisplay({ htmlContent, seoTitle, seoDescription, images, isG
             <TabsContent value="seo" className="flex-grow mt-0 data-[state=inactive]:hidden">
                 <ScrollArea className="h-full">
                     <div className="p-6 space-y-6">
-                        <MetadataField 
-                            label={`SEO Title (${seoTitle.length} / 60)`}
-                            value={seoTitle} 
-                            onCopy={handleCopy} 
+                        <SeoMetadataField 
+                            label="SEO Title"
+                            value={seoTitle}
+                            limit={60}
+                            onCopy={() => handleCopy(seoTitle, 'SEO Title')}
+                            onRegenerate={handleRegenerateTitleClick}
+                            isRegenerating={isRegeneratingTitle}
                         />
-                         <MetadataField 
-                            label={`SEO Description (${seoDescription.length} / 160)`}
-                            value={seoDescription} 
-                            onCopy={handleCopy} 
-                            isTextarea 
+                         <SeoMetadataField 
+                            label="SEO Description"
+                            value={seoDescription}
+                            limit={160}
+                            onCopy={() => handleCopy(seoDescription, 'SEO Description')}
+                            isTextarea
+                            onRegenerate={handleRegenerateDescriptionClick}
+                            isRegenerating={isRegeneratingDesc}
                         />
                     </div>
                 </ScrollArea>
@@ -362,6 +385,48 @@ const MetadataField = ({ label, value, onCopy, isTextarea = false }: MetadataFie
         </div>
     </div>
 );
+
+interface SeoMetadataFieldProps {
+    label: string;
+    value: string;
+    limit: number;
+    onCopy: () => void;
+    onRegenerate: () => void;
+    isRegenerating: boolean;
+    isTextarea?: boolean;
+}
+
+const SeoMetadataField = ({ label, value, limit, onCopy, onRegenerate, isRegenerating, isTextarea = false }: SeoMetadataFieldProps) => {
+    const isOverLimit = value.length > limit;
+    return (
+        <div className="space-y-1">
+            <div className="flex justify-between items-center">
+                <Label htmlFor={label} className="text-sm font-medium">{label}</Label>
+                <span className={cn("text-xs", isOverLimit ? "text-destructive" : "text-muted-foreground")}>
+                    {value.length} / {limit}
+                </span>
+            </div>
+            <div className="relative">
+                {isTextarea ? (
+                    <Textarea id={label} value={value} readOnly className={cn("pr-10 bg-muted", isOverLimit ? "border-destructive" : "")} rows={4} />
+                ) : (
+                    <Input id={label} value={value} readOnly className={cn("pr-10 bg-muted", isOverLimit ? "border-destructive" : "")} />
+                )}
+                <div className="absolute right-1 top-1.5 flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onCopy} aria-label="Copy">
+                        <ClipboardCopy className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+             <div className="flex justify-end mt-2">
+                <Button variant="outline" size="sm" onClick={onRegenerate} disabled={isRegenerating}>
+                     <RefreshCw className={cn("mr-2 h-4 w-4", isRegenerating && "animate-spin")} />
+                     Regenerate
+                </Button>
+            </div>
+        </div>
+    );
+};
 
 // New component for displaying debug information in the accordion
 const DebugField = ({ label, data, height = 'h-48', isScraperLog = false }: { label: string, data: any, height?: string, isScraperLog?: boolean }) => {

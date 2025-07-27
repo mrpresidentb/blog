@@ -32,8 +32,8 @@ const InternalPromptInputSchema = GenerateBlogPostInputSchema.extend({
 
 const GenerateBlogPostOutputSchema = z.object({
   htmlContent: z.string().describe('The complete blog post content with HTML tags.'),
-  seoTitle: z.string().max(60).describe('An SEO-optimized title for the blog post, under 60 characters.'),
-  seoDescription: z.string().max(160).describe('An SEO-optimized meta description for the blog post, under 160 characters.'),
+  seoTitle: z.string().describe('An SEO-optimized title for the blog post.'),
+  seoDescription: z.string().describe('An SEO-optimized meta description for the blog post.'),
   debugInfo: z.record(z.any()).optional().describe("Debugging information about the generation process."),
 });
 
@@ -45,8 +45,8 @@ export async function generateBlogPost(input: GenerateBlogPostInput): Promise<Ge
 
 const PromptOutputSchema = z.object({
   htmlContent: z.string().describe('The complete blog post content with HTML tags.'),
-  seoTitle: z.string().max(60).describe('An SEO-optimized title for the blog post. It MUST NOT exceed 60 characters.'),
-  seoDescription: z.string().max(160).describe('An SEO-optimized meta description for the blog post. It MUST NOT exceed 160 characters.'),
+  seoTitle: z.string().describe('An SEO-optimized title for the blog post. It MUST NOT exceed 60 characters.'),
+  seoDescription: z.string().describe('An SEO-optimized meta description for the blog post. It MUST NOT exceed 160 characters.'),
 });
 
 

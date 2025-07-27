@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Wand2 } from 'lucide-react';
 import type { GenerateBlogPostInput } from '@/ai/flows/generate-blog-post';
-import { handleGeneratePost, handleFeedback, handleGenerateImages, AppGeneratePostOutput } from '@/app/actions';
+import { handleGeneratePost, handleFeedback, handleGenerateImages, AppGeneratePostOutput, handleRegenerateSeoTitle, handleRegenerateSeoDescription } from '@/app/actions';
 import type { ImageDetails } from '@/ai/flows/generate-blog-images';
 import { useToast } from "@/hooks/use-toast";
 
@@ -18,8 +18,9 @@ interface BlogPostState {
   seoDescription: string;
   images: ImageDetails[] | null;
   rawOutput: string;
-  imageRawOutput: string; // New field for image logs
+  imageRawOutput: string;
   isGeneratingImages: boolean;
+  keywords: string; // Store keywords for regeneration
 }
 
 export default function Home() {
@@ -91,6 +92,7 @@ export default function Home() {
         rawOutput: result.rawOutput,
         imageRawOutput: '', // Initialize as empty
         isGeneratingImages: !!data.generateImages,
+        keywords: data.keywords, // Save keywords
       };
       setBlogPost(initialPostState);
 
@@ -116,7 +118,7 @@ export default function Home() {
     } catch (e) {
       const errorMessage = 'An unexpected error occurred. Please check the console and try again.';
       const rawError = e instanceof Error ? e.message : JSON.stringify(e, null, 2);
-      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`, images: null, rawOutput: rawError, imageRawOutput: '', isGeneratingImages: false, seoTitle: 'Error', seoDescription: 'Error'});
+      setBlogPost({htmlContent: `<h1>Unexpected Error</h1><p>${errorMessage}</p>`, images: null, rawOutput: rawError, imageRawOutput: '', isGeneratingImages: false, seoTitle: 'Error', seoDescription: 'Error', keywords: data.keywords});
       toast({
         variant: "destructive",
         title: "Error",
@@ -143,6 +145,28 @@ export default function Home() {
         description: "Could not submit your feedback. Please try again.",
       });
     }
+  };
+  
+  const onRegenerateSeoTitle = async () => {
+    if (!blogPost) return;
+    try {
+        const { seoTitle } = await handleRegenerateSeoTitle({ blogContent: blogPost.htmlContent, keywords: blogPost.keywords });
+        setBlogPost(prev => prev ? { ...prev, seoTitle } : null);
+        toast({ title: "SEO Title Regenerated!" });
+    } catch (error) {
+        toast({ variant: "destructive", title: "Failed to regenerate title" });
+    }
+  };
+  
+  const onRegenerateSeoDescription = async () => {
+      if (!blogPost) return;
+      try {
+          const { seoDescription } = await handleRegenerateSeoDescription({ blogContent: blogPost.htmlContent, keywords: blogPost.keywords });
+          setBlogPost(prev => prev ? { ...prev, seoDescription } : null);
+          toast({ title: "SEO Description Regenerated!" });
+      } catch (error) {
+          toast({ variant: "destructive", title: "Failed to regenerate description" });
+      }
   };
 
   return (
@@ -178,6 +202,8 @@ export default function Home() {
                   imageRawOutput={blogPost.imageRawOutput}
                   onFeedback={onFeedback}
                   onRegenerateImages={onGenerateImages}
+                  onRegenerateSeoTitle={onRegenerateSeoTitle}
+                  onRegenerateSeoDescription={onRegenerateSeoDescription}
                 />
               )}
               {!loading && !blogPost &&(

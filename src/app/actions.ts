@@ -4,6 +4,7 @@
 import { generateBlogPost, GenerateBlogPostInput, GenerateBlogPostOutput } from '@/ai/flows/generate-blog-post';
 import { generateBlogImages, ImageDetails } from '@/ai/flows/generate-blog-images';
 import { improveBlogPost } from '@/ai/flows/improve-blog-post';
+import { regenerateSeoTitle, RegenerateSeoTitleInput, RegenerateSeoTitleOutput, regenerateSeoDescription, RegenerateSeoDescriptionInput, RegenerateSeoDescriptionOutput } from '@/ai/flows/regenerate-seo-metadata';
 
 export type AppGeneratePostInput = GenerateBlogPostInput;
 
@@ -85,4 +86,12 @@ export async function handleFeedback(blogPost: string, rating: 'up' | 'down'): P
     console.error('Error sending feedback:', error);
     return { success: false };
   }
+}
+
+export async function handleRegenerateSeoTitle(input: RegenerateSeoTitleInput): Promise<RegenerateSeoTitleOutput> {
+    return regenerateSeoTitle(input);
+}
+
+export async function handleRegenerateSeoDescription(input: RegenerateSeoDescriptionInput): Promise<RegenerateSeoDescriptionOutput> {
+    return regenerateSeoDescription(input);
 }

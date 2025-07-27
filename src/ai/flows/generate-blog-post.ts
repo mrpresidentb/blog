@@ -15,6 +15,7 @@ const GenerateBlogPostInputSchema = z.object({
   tone: z.enum(['professional', 'humorous', 'neutral']).default('neutral').describe('The tone of the blog post.'),
   articleLength: z.string().optional().describe('The desired length of the article, e.g., "short", "medium", "long", or a specific word count range.'),
   customLength: z.number().optional().describe('A custom number of sections for the article, if articleLength is "custom".'),
+  additionalInstructions: z.string().optional().describe('Additional instructions for the AI writer.'),
   highQuality: z.boolean().optional().describe('If true, the model should perform a more thorough and in-depth generation process.'),
   model: z.string().optional().describe('The AI model to use for generation.'),
   scraperType: z.enum(['standard', 'scraper_api']).optional().describe('The scraper to use for High Quality mode.'),
@@ -59,6 +60,9 @@ Keywords: {{{keywords}}}
 Tone: {{{tone}}}
 {{#if articleLengthText}}
 Article Length: {{{articleLengthText}}}
+{{/if}}
+{{#if additionalInstructions}}
+Additional Instructions: {{{additionalInstructions}}}
 {{/if}}
 
 Please generate a complete blog post with HTML tags that is both informative and engaging.`,
@@ -293,7 +297,7 @@ const generateBlogPostFlow = ai.defineFlow({
                          relevanceCheckResults[scrapedPage.url].error = 'Readability could not extract main content.';
                          continue;
                     }
-                    cleanTextContent = article.textContent.replace(/(\s*\n\s*){2,}/g, '\n\n').trim();
+                    cleanTextContent = article.textContent.replace(/(\\s*\\n\\s*){2,}/g, '\\n\\n').trim();
 
                 } catch (e) {
                      relevanceCheckResults[scrapedPage.url].error = `Readability parsing failed: ${e instanceof Error ? e.message : String(e)}`;
@@ -313,12 +317,12 @@ const generateBlogPostFlow = ai.defineFlow({
 
             // F. ADD TO CONTEXT if relevant
             if (isRelevant) {
-                relevantContent.push(`Source URL: ${scrapedPage.url}\n\n'''\n${cleanTextContent}\n'''`);
+                relevantContent.push(`Source URL: ${scrapedPage.url}\\n\\n'''\\n${cleanTextContent}\\n'''`);
             }
         }
         debugInfo.scrapedPageContentsAndRelevance = relevanceCheckResults;
 
-        const research_context = relevantContent.join('\n\n---\n\n');
+        const research_context = relevantContent.join('\\n\\n---\\n\\n');
         console.log("HIGH QUALITY MODE: Aggregated research context. Length:", research_context.length);
         
         if (research_context) {

@@ -22,6 +22,7 @@ import { Wand2, Loader2, Info } from 'lucide-react';
 import type { GenerateBlogPostInput } from '@/ai/flows/generate-blog-post';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Textarea } from './ui/textarea';
 
 const formSchema = z.object({
   topic: z.string().min(5, {
@@ -37,6 +38,7 @@ const formSchema = z.object({
   model: z.string().default('googleai/gemini-2.5-pro'),
   articleLength: z.string().default('default'),
   customLength: z.coerce.number().optional(),
+  additionalInstructions: z.string().optional(),
   highQuality: z.boolean().default(false),
   scraperType: z.enum(['standard', 'scraper_api']).default('standard'),
   generateImages: z.boolean().default(false),
@@ -66,6 +68,7 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
       model: 'googleai/gemini-2.5-pro',
       articleLength: 'default',
       customLength: undefined,
+      additionalInstructions: '',
       highQuality: false,
       scraperType: 'standard',
       generateImages: false,
@@ -252,6 +255,29 @@ export function BlogForm({ onGenerate, loading }: BlogFormProps) {
                 )}
             />
             
+            {!highQualityValue && (
+                 <FormField
+                    control={form.control}
+                    name="additionalInstructions"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Additional Instructions</FormLabel>
+                            <FormControl>
+                                <Textarea
+                                placeholder="e.g., Focus on the impact on small businesses. Keep the tone slightly formal."
+                                className="resize-y"
+                                {...field}
+                                />
+                            </FormControl>
+                            <FormDescription>
+                                Provide any extra guidance for the AI writer (Standard Mode only).
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            )}
+
             {highQualityValue && (
                 <FormField
                     control={form.control}

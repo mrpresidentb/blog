@@ -264,17 +264,14 @@ const generateBlogPostFlow = ai.defineFlow({
 
         // 4. Process settled results: Clean, Check Relevance, and Aggregate
         for (const result of settledScrapeResults) {
-            // A. Handle rejected promises (network errors, etc.)
             if (result.status === 'rejected') {
                 const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
                 console.error('[generateBlogPostFlow] A scrape promise was rejected:', reason);
-                // We don't know the URL if the promise was rejected without it, so we log and continue.
                 continue; 
             }
 
             const scrapedPage: ScrapedPage = result.value;
 
-            // Initialize log entry for this URL
             relevanceCheckResults[scrapedPage.url] = {
                 isRelevant: false,
                 rawRequest: scrapedPage.rawRequestUrl,
@@ -294,27 +291,22 @@ const generateBlogPostFlow = ai.defineFlow({
                 continue;
             }
 
-            // D. CLEAN - Parse with Readability
+            // D. CLEAN - Parse with Readability, now for ALL scraper types
             let cleanTextContent: string;
-            
-            if (input.scraperType === 'scraper_api') {
-                cleanTextContent = scrapedPage.htmlContent;
-            } else {
-                try {
-                    const doc = new JSDOM(scrapedPage.htmlContent, { url: scrapedPage.url });
-                    const reader = new Readability(doc.window.document);
-                    const article = reader.parse();
+            try {
+                const doc = new JSDOM(scrapedPage.htmlContent, { url: scrapedPage.url });
+                const reader = new Readability(doc.window.document);
+                const article = reader.parse();
 
-                    if (!article || !article.textContent) {
-                         relevanceCheckResults[scrapedPage.url].error = 'Readability could not extract main content.';
-                         continue;
-                    }
-                    cleanTextContent = article.textContent.replace(/(\\s*\\n\\s*){2,}/g, '\\n\\n').trim();
-
-                } catch (e) {
-                     relevanceCheckResults[scrapedPage.url].error = `Readability parsing failed: ${e instanceof Error ? e.message : String(e)}`;
+                if (!article || !article.textContent) {
+                     relevanceCheckResults[scrapedPage.url].error = 'Readability could not extract main content.';
                      continue;
                 }
+                cleanTextContent = article.textContent.replace(/(\\s*\\n\\s*){2,}/g, '\\n\\n').trim();
+
+            } catch (e) {
+                 relevanceCheckResults[scrapedPage.url].error = `Readability parsing failed: ${e instanceof Error ? e.message : String(e)}`;
+                 continue;
             }
 
             relevanceCheckResults[scrapedPage.url].preview = cleanTextContent.substring(0, 200) + '...';

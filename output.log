@@ -1,0 +1,33 @@
+
+> nextn@0.1.0 dev
+> next dev --turbopack
+
+ ⚠ Port 3000 is in use, using available port 3001 instead.
+   ▲ Next.js 15.3.3 (Turbopack)
+   - Local:        http://localhost:3001
+   - Network:      http://172.21.111.149:3001
+   - Environments: .env.local, .env
+
+ ✓ Starting...
+ ✓ Ready in 635ms
+ ○ Compiling / ...
+ ✓ Compiled / in 2.1s
+Error parsing GOOGLE_SERVICE_ACCOUNT or initializing Firebase Admin SDK: TypeError: Cannot read properties of undefined (reading 'INTERNAL')
+    at [project]/src/ai/genkit.ts [app-rsc] (ecmascript) (src/ai/genkit.ts:18:26)
+    at [project]/src/ai/flows/generate-blog-post.ts [app-rsc] (ecmascript) (src/ai/flows/generate-blog-post.ts:11:0)
+    at [project]/src/app/actions.ts [app-rsc] (ecmascript) (src/app/actions.ts:4:0)
+    at [project]/.next-internal/server/app/page/actions.js { ACTIONS_MODULE0 => "[project]/src/app/actions.ts [app-rsc] (ecmascript)" } [app-rsc] (server actions loader, ecmascript) <module evaluation> (.next/server/chunks/ssr/[root-of-the-server]__3b4ae354._.js:1330:147)
+    at [project]/.next-internal/server/app/page/actions.js { ACTIONS_MODULE0 => "[project]/src/app/actions.ts [app-rsc] (ecmascript)" } [app-rsc] (server actions loader, ecmascript) (.next/server/chunks/ssr/[root-of-the-server]__3b4ae354._.js:1360:364)
+    at Object.<anonymous> (.next/server/app/page.js:32:9)
+  16 |     try {
+  17 |       const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
+> 18 |       admin.initializeApp({
+     |                          ^
+  19 |         credential: admin.credential.cert(serviceAccount),
+  20 |         storageBucket: `${serviceAccount.project_id}.appspot.com`
+  21 |       });
+ GET / 200 in 2587ms
+ ⚠ Cross origin request detected from 172.21.111.149 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ ✓ Compiled /favicon.ico in 282ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 512ms

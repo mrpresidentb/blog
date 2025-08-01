@@ -1,10 +1,3 @@
-/* eslint-disable no-console */
-/* ------------------------------------------------------------------
- *  generate-blog-post.ts
- * ------------------------------------------------------------------
- *  Полный AI-пайплайн: search → scrape → clean+relevance (Gemini) →
- *  агрегированный RAG-контекст → финальный пост.
- * ---------------------------------------------------------------- */
 
 'use server';
 
@@ -13,6 +6,9 @@ import { z } from 'zod';
 
 import { performSearch } from '@/services/google-search';
 import { scrapePage, ScrapedPage } from '@/services/page-scraper';
+import { JSDOM } from 'jsdom';
+import { Readability } from '@mozilla/readability';
+
 
 /* ---------- Константы ---------- */
 const NUM_URLS_TO_SCRAPE   = 5;
@@ -21,7 +17,7 @@ const MAX_HTML_CHARS       = 20_000;     // чтобы не переполнит
 const MIN_ARTICLE_CHARS    = 150;        // фильтр мусора
 
 /* ---------- Типы входа / выхода ---------- */
-export const GenerateBlogPostInputSchema = z.object({
+const GenerateBlogPostInputSchema = z.object({
   topic:                z.string(),
   keywords:             z.string(),
   tone:                 z.enum(['professional', 'humorous', 'neutral']).default('neutral'),
@@ -41,11 +37,11 @@ const InternalPromptInputSchema = GenerateBlogPostInputSchema.extend({
 
 const PromptOutputSchema = z.object({
   htmlContent   : z.string(),
-  seoTitle      : z.string().max(60),
-  seoDescription: z.string().max(160),
+  seoTitle      : z.string(),
+  seoDescription: z.string(),
 });
 
-export const GenerateBlogPostOutputSchema = PromptOutputSchema.extend({
+const GenerateBlogPostOutputSchema = PromptOutputSchema.extend({
   debugInfo: z.record(z.any()).optional(),
 });
 export type GenerateBlogPostOutput = z.infer<typeof GenerateBlogPostOutputSchema>;
@@ -59,9 +55,9 @@ const standardBlogPostPrompt = ai.definePrompt({
 You are an expert blog-post writer and SEO specialist.
 Write an engaging, ORIGINAL article using standard HTML tags (<h1>, <h2>, <p>, <ul>, <li>, <strong>).
 
-After the article return:
-1) "seoTitle" – ≤ 60 chars
-2) "seoDescription" – ≤ 160 chars
+IMPORTANT: After the article, you MUST return the following two fields in the specified JSON format:
+1) "seoTitle" – An SEO-optimized title for the blog post. It MUST NOT exceed 60 characters.
+2) "seoDescription" – An SEO-optimized meta description for the blog post. It MUST NOT exceed 160 characters.
 
 Topic: {{{topic}}}
 Keywords: {{{keywords}}}
@@ -75,13 +71,19 @@ const highQualityBlogPostPrompt = ai.definePrompt({
   input:  { schema: InternalPromptInputSchema },
   output: { schema: PromptOutputSchema },
   prompt: `
-You are an expert writer. Synthesise a NEW article based on the research context (do **NOT** copy).
-Return the same three fields as JSON.
+You are an expert writer and researcher. Synthesise a completely NEW and ORIGINAL article based *only* on the provided research context.
+IMPORTANT: Do **NOT** copy text from the research context. Use it as a foundation to write an entirely new piece in your own words.
+Use standard HTML tags (<h1>, <h2>, <p>, <ul>, <li>, <strong>).
+
+After the article, you MUST return the following two fields in the specified JSON format:
+1) "seoTitle" – An SEO-optimized title for the blog post. It MUST NOT exceed 60 characters.
+2) "seoDescription" – An SEO-optimized meta description for the blog post. It MUST NOT exceed 160 characters.
 
 --- RESEARCH CONTEXT START ---
 {{{research_context}}}
 --- RESEARCH CONTEXT END ---
 
+Your task is to write a new article based on the provided context, focusing on this topic and keywords:
 Topic: {{{topic}}}
 Keywords: {{{keywords}}}
 Tone: {{{tone}}}
@@ -98,8 +100,8 @@ const generateSearchQueriesFlow = ai.defineFlow(
   async ({ topic }) => {
     const currentYear = new Date().getFullYear();
     const prompt = `
-Generate 3–4 distinct Google queries to research "${topic}" (${currentYear}).
-Return **ONLY** JSON: {"queries":["q1","q2"]}`.trim();
+Generate 3-4 distinct Google queries to research "${topic}" for the current year, ${currentYear}.
+Return **ONLY** JSON in the format: {"queries":["query one","query two"]}`.trim();
 
     try {
       const { output } = await ai.generate({
@@ -113,54 +115,39 @@ Return **ONLY** JSON: {"queries":["q1","q2"]}`.trim();
   },
 );
 
-/* ---------- 2. Очистка + релевантность (одна страница = один запрос) ---------- */
-const cleanAndFilterFlow = ai.defineFlow(
-  {
-    name        : 'cleanAndFilterFlow',
-    inputSchema : z.object({
-      topic     : z.string(),
-      rawContent: z.string(),
-      url       : z.string().url(),
-    }),
-    outputSchema: z.object({
-      isRelevant     : z.boolean(),
-      cleanedContent : z.string().optional(),
-    }),
-  },
-  async ({ topic, rawContent, url }) => {
-    const trimmed = rawContent.slice(0, MAX_HTML_CHARS);
-    const prompt  = `
-You are a content-extraction agent.
-Task: decide if the HTML contains an article RELEVANT to "${topic}".
-If yes – return JSON {"isRelevant":true,"cleanedContent":"ONLY clear article text"}.
-If no – return JSON {"isRelevant":false}.
 
-HTML (truncated):
-${trimmed}`.trim();
+const checkRelevanceFlow = ai.defineFlow({
+    name: 'checkRelevanceFlow',
+    inputSchema: z.object({
+        topic: z.string(),
+        content: z.string(),
+    }),
+    outputSchema: z.boolean(),
+}, async ({ topic, content }) => {
+    const prompt = `You are a relevance checking agent. Is the following text relevant for writing an article about "${topic}"?
+Respond with only "true" or "false".
 
+Text:
+---
+${content.substring(0, 4000)}
+---
+`;
     try {
-      const { output } = await ai.generate({
-        prompt,
-        model : 'googleai/gemini-2.5-flash',
-        output: {
-          format: 'json',
-          schema: z.object({
-            isRelevant    : z.boolean(),
-            cleanedContent: z.string().optional(),
-          }),
-        },
-      });
-      /* safety check */
-      if (output.isRelevant && (output.cleanedContent ?? '').length < MIN_ARTICLE_CHARS) {
-        return { isRelevant: false };
-      }
-      return output;
+        const { output } = await ai.generate({
+            prompt,
+            model: 'googleai/gemini-2.5-flash-lite',
+            output: {
+                format: 'json',
+                schema: z.boolean(),
+            },
+        });
+        return output ?? false;
     } catch (err) {
-      console.error(`[cleanAndFilterFlow] ${url}:`, err);
-      return { isRelevant: false };
+        console.error(`[checkRelevanceFlow] Error:`, err);
+        return false;
     }
-  },
-);
+});
+
 
 /* ---------- Основной Flow ---------- */
 const generateBlogPostFlow = ai.defineFlow(
@@ -185,54 +172,97 @@ const generateBlogPostFlow = ai.defineFlow(
       input.articleLength === 'custom' && input.customLength
         ? `${input.customLength} sections`
         : (input.articleLength && lengthMap[input.articleLength]) || undefined;
+    
+    const promptInputBase = {
+        ...input,
+        articleLengthText
+    };
 
     /* ---------- HIGH-QUALITY (RAG) ---------- */
     if (input.highQuality) {
       debugInfo.mode = 'High Quality (RAG)';
+      debugInfo.scraper = { type: input.scraperType };
+      
       const { queries } = await generateSearchQueriesFlow({ topic: input.topic });
-      debugInfo.queries = queries;
+      debugInfo.generatedSearchQueries = queries;
 
       /* ---- 2.1 Search ---- */
       const allUrls = new Set<string>();
-      for (const q of queries) {
-        const res = await performSearch(q);
-        debugInfo[`search:${q}`] = res;
-        res.forEach(r => allUrls.add(r.link));
-      }
-      const urls = Array.from(allUrls).slice(0, NUM_URLS_TO_SCRAPE);
+      const searchPromises = queries.map(q => performSearch(q));
+      const searchResults = await Promise.all(searchPromises);
+      debugInfo.rawSearchResults = searchResults;
 
-      /* ---- 2.2 Scrape + Clean ---- */
-      const relevantChunks: string[] = [];
-      debugInfo.clean = {};
+      searchResults.flat().forEach(r => allUrls.add(r.link));
+      const urlsToScrape = Array.from(allUrls).slice(0, NUM_URLS_TO_SCRAPE);
+      debugInfo.urlsToScrape = urlsToScrape;
+      
+      /* ---- 2.2 Scrape + Clean + Filter ---- */
+      const relevantContent: string[] = [];
+      const scrapedPageDetails: Record<string, any> = {};
 
-      for (let i = 0; i < urls.length; i += SCRAPE_BATCH_SIZE) {
-        const batch = urls.slice(i, i + SCRAPE_BATCH_SIZE);
-        const scraped = await Promise.allSettled(
-          batch.map(u => scrapePage(u, input.scraperType)),
+      for (let i = 0; i < urlsToScrape.length; i += SCRAPE_BATCH_SIZE) {
+        const batchUrls = urlsToScrape.slice(i, i + SCRAPE_BATCH_SIZE);
+        const settledScrapeResults = await Promise.allSettled(
+          batchUrls.map(u => scrapePage(u, input.scraperType)),
         );
 
-        for (const res of scraped) {
-          if (res.status !== 'fulfilled' || !res.value?.success) continue;
-          const page: ScrapedPage = res.value;
-          const clean = await cleanAndFilterFlow({
-            topic: input.topic,
-            rawContent: page.htmlContent || '',
-            url: page.url,
-          });
+        for (const scrapeResult of settledScrapeResults) {
+            if (scrapeResult.status !== 'fulfilled' || !scrapeResult.value?.success || !scrapeResult.value.htmlContent) {
+                 if (scrapeResult.status === 'fulfilled' && scrapeResult.value) {
+                    scrapedPageDetails[scrapeResult.value.url] = { isRelevant: false, error: 'Scrape failed or returned no content', ...scrapeResult.value };
+                }
+                continue;
+            }
 
-          debugInfo.clean[page.url] = clean.isRelevant;
-          if (clean.isRelevant && clean.cleanedContent) {
-            relevantChunks.push(`SOURCE: ${page.url}\n\n${clean.cleanedContent}`);
-          }
+            const scrapedPage: ScrapedPage = scrapeResult.value;
+            const { url, htmlContent, rawRequestUrl, rawResponse } = scrapedPage;
+            
+            try {
+                // CLEAN with Readability
+                const dom = new JSDOM(htmlContent, { url });
+                const reader = new Readability(dom.window.document);
+                const article = reader.parse();
+                const cleanTextContent = article?.textContent || '';
+
+                if (cleanTextContent.length < MIN_ARTICLE_CHARS) {
+                    scrapedPageDetails[url] = { isRelevant: false, error: 'Not enough content after Readability parsing', ...scrapedPage };
+                    continue;
+                }
+                
+                // RELEVANCE CHECK on clean content
+                const isRelevant = await checkRelevanceFlow({
+                    topic: input.topic,
+                    content: cleanTextContent,
+                });
+                
+                scrapedPageDetails[url] = { isRelevant, rawRequest: rawRequestUrl, rawResponse: rawResponse?.substring(0, 1000) };
+
+                if (isRelevant) {
+                    relevantContent.push(`Source URL: ${url}\n\n'''\n${cleanTextContent}\n'''`);
+                }
+
+            } catch(e) {
+                 scrapedPageDetails[url] = { isRelevant: false, error: `Readability or relevance check failed: ${(e as Error).message}`, ...scrapedPage };
+            }
         }
       }
+      debugInfo.scrapedPageContentsAndRelevance = scrapedPageDetails;
 
-      const research_context = relevantChunks.join('\n\n---\n\n');
-      debugInfo.researchContextLen = research_context.length;
+      const research_context = relevantContent.join('\n\n---\n\n');
+      debugInfo.researchContextSentToAI = research_context;
+      
+      if (research_context.length < MIN_ARTICLE_CHARS) {
+        return {
+          htmlContent: '<h1>Research Failed</h1><p>Could not find enough relevant information online to write a high-quality article on this topic. Please try a different topic or check the scraper settings.</p>',
+          seoTitle: 'Research Failed',
+          seoDescription: 'Could not find enough relevant information for the topic.',
+          debugInfo,
+        };
+      }
 
       /* ---- 2.3 Финальный пост ---- */
       const { output } = await highQualityBlogPostPrompt(
-        { ...input, articleLengthText, research_context },
+        { ...promptInputBase, research_context },
         { model: input.model },
       );
       return { ...output, debugInfo };
@@ -241,7 +271,7 @@ const generateBlogPostFlow = ai.defineFlow(
     /* ---------- STANDARD ---------- */
     debugInfo.mode = 'Standard';
     const { output } = await standardBlogPostPrompt(
-      { ...input, articleLengthText },
+      promptInputBase,
       { model: input.model },
     );
     return { ...output, debugInfo };
@@ -258,7 +288,7 @@ export async function generateBlogPost(
       const error = e as Error;
       console.error("CRITICAL ERROR in generateBlogPostFlow:", e);
       return {
-          htmlContent: `<h1>Error Generating Post</h1><p>A critical error occurred: ${error.message}</p>`,
+          htmlContent: `<h1>Error Generating Post</h1><p>A critical error occurred: ${error.message}</p><p>Check the Output tab for more details.</p>`,
           seoTitle: 'Error',
           seoDescription: 'An error occurred during generation.',
           debugInfo: {
